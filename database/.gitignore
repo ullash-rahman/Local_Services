@@ -1,0 +1,12 @@
+# Ignore database dumps and backups
+*.sql.bak
+*.dump
+*.backup
+
+# Ignore local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Keep schema.sql and README.md - these should be committed
+
