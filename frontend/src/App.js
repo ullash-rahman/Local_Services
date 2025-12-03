@@ -5,6 +5,8 @@ import Register from './components/Auth/Register';
 import CustomerDashboard from './components/Dashboard/CustomerDashboard';
 import ProviderDashboard from './components/Dashboard/ProviderDashboard';
 import { authService } from './services/authService';
+import BundleManagerPage from './components/Bundle/BundleManagerPage';
+import BundleListPage from './components/Bundle/BundleListPage';
 import './App.css';
 
 // Protected Route Component
@@ -46,6 +48,22 @@ function App() {
                         element={
                             <ProtectedRoute allowedRoles={['Provider']}>
                                 <ProviderDashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/dashboard/provider/servicebundle"
+                        element={
+                            <ProtectedRoute allowedRoles={['Provider']}>
+                                <BundleManagerPage />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/dashboard/customer/bundles"
+                        element={
+                            <ProtectedRoute allowedRoles={['Customer']}>
+                                <BundleListPage />
                             </ProtectedRoute>
                         }
                     />
