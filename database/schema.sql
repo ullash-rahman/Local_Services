@@ -1,13 +1,4 @@
--- =====================================================
--- Complete Database Schema
--- Local Services & Home Task Helper
--- MERN Stack with MySQL
--- =====================================================
--- This schema includes all tables for the entire system
--- Share this file with team members via GitHub
--- =====================================================
 
-Create Database (uncomment if needed)
 CREATE DATABASE IF NOT EXISTS local_services_db;
 USE local_services_db;
 
