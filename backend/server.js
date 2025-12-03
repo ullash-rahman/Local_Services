@@ -8,6 +8,7 @@ const authRoutes = require('./routes/authRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const Chat = require('./models/Chat');
+const bundleRoutes = require('./routes/bundleRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -25,6 +26,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/bundles', bundleRoutes);
+
 
 // Health check route
 app.get('/api/health', (req, res) => {
