@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { dashboardService } from '../../services/dashboardService';
 import ConversationsList from '../Chat/ConversationsList';
@@ -68,6 +68,15 @@ const CustomerDashboard = () => {
 
             <main className="dashboard-main">
                 <div className="dashboard-content">
+                    {/* Navigation Links */}
+                    <div className="dashboard-nav">
+                        <Link to="/dashboard/customer" className="nav-link">
+                            Dashboard
+                        </Link>
+                        <Link to="/dashboard/customer/bundles" className="nav-link">
+                            Browse Bundles
+                        </Link>
+                    </div>
                     <div className="welcome-section">
                         <h2>Welcome to Your Dashboard</h2>
                         <p>This is your customer dashboard. Features will be added here.</p>
