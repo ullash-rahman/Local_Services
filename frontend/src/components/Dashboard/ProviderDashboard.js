@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { dashboardService } from '../../services/dashboardService';
 import ConversationsList from '../Chat/ConversationsList';
@@ -69,6 +69,15 @@ const ProviderDashboard = () => {
             <main className="dashboard-main">
                 <div className="dashboard-content">
                     <div className="welcome-section">
+                        {/* Navigation Links */}
+                      <div className="dashboard-nav">
+                        <Link to="/dashboard/provider" className="nav-link">
+                            Dashboard
+                        </Link>
+                        <Link to="/dashboard/provider/servicebundle" className="nav-link">
+                            Service Bundles
+                        </Link>
+                      </div>
                         <h2>Welcome to Your Dashboard</h2>
                         <p>This is your provider dashboard. Features will be added here.</p>
                     </div>
