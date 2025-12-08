@@ -5,6 +5,7 @@ import { dashboardService } from '../../services/dashboardService';
 import CreateServiceRequest from '../ServiceRequest/CreateServiceRequest';
 import ServiceRequestList from '../ServiceRequest/ServiceRequestList';
 import ChatHeader from '../Chat/ChatHeader';
+import NotificationCenter from '../Notifications/NotificationCenter';
 import './Dashboard.css';
 
 const CustomerDashboard = () => {
@@ -61,6 +62,7 @@ const CustomerDashboard = () => {
                     <h1>Customer Dashboard</h1>
                     <div className="header-actions">
                         <ChatHeader initialConversation={selectedChatConversation} />
+                        <NotificationCenter />
                         <span className="user-name">Welcome, {user?.name}</span>
                         <button onClick={handleLogout} className="btn-logout">
                             Logout

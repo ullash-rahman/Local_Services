@@ -10,6 +10,8 @@ const chatRoutes = require('./routes/chatRoutes');
 const Chat = require('./models/Chat');
 const bundleRoutes = require('./routes/bundleRoutes');
 const serviceRequestRoutes = require('./routes/serviceRequestRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+
 // Load environment variables
 dotenv.config();
 
@@ -28,6 +30,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/bundles', bundleRoutes);
 app.use('/api/service-requests', serviceRequestRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 
 // Health check route
@@ -91,6 +94,10 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.userID}`);
 
+    // Join user's personal room for notifications
+    socket.join(`user_${socket.userID}`);
+    console.log(`User ${socket.userID} joined their notification room`);
+
     // Join room for a specific request
     socket.on('join_request', (requestID) => {
         socket.join(`request_${requestID}`);
@@ -120,6 +127,32 @@ io.on('connection', (socket) => {
             // Get sender name
             const User = require('./models/User');
             const sender = await User.findById(senderID);
+
+            // Get receiver info and request for notification
+            const receiver = await User.findById(receiverID);
+            const ServiceRequest = require('./models/ServiceRequest');
+            const request = await ServiceRequest.findById(requestID);
+
+            // Create notification for receiver
+            try {
+                const Notification = require('./models/Notification');
+                await Notification.create({
+                    userID: receiverID,
+                    requestID: requestID,
+                    message: `${sender.name} sent you a message about ${request ? request.category : 'your service request'}`,
+                    notificationType: 'message'
+                });
+
+                // Emit notification to receiver via Socket.io
+                io.to(`user_${receiverID}`).emit('new_notification', {
+                    message: `${sender.name} sent you a message`,
+                    notificationType: 'message',
+                    requestID: requestID
+                });
+            } catch (notifError) {
+                console.error('Error creating message notification:', notifError);
+                // Don't fail the message send if notification fails
+            }
 
             // Emit to all users in the request room
             const messageData = {
@@ -171,6 +204,9 @@ server.listen(PORT, () => {
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`Socket.io server initialized`);
 });
+
+// Make io available globally for controllers
+global.io = io;
 
 module.exports = { app, server, io };
 
