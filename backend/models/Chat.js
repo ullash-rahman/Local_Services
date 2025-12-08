@@ -93,24 +93,24 @@ class Chat {
                 sr.category,
                 sr.description as requestDescription,
                 CASE 
-                    WHEN sr.customerID = ? THEN u2.name
-                    ELSE u1.name
+                    WHEN c.senderID = ? THEN receiver.name
+                    ELSE sender.name
                 END as otherUserName,
                 CASE 
-                    WHEN sr.customerID = ? THEN u2.userID
-                    ELSE u1.userID
+                    WHEN c.senderID = ? THEN c.receiverID
+                    ELSE c.senderID
                 END as otherUserID,
                 CASE 
-                    WHEN sr.customerID = ? THEN 'Customer'
-                    ELSE 'Provider'
+                    WHEN c.senderID = ? THEN receiver.role
+                    ELSE sender.role
                 END as otherUserRole,
                 (SELECT messageText FROM Chat WHERE requestID = c.requestID ORDER BY timestamp DESC LIMIT 1) as lastMessage,
                 (SELECT timestamp FROM Chat WHERE requestID = c.requestID ORDER BY timestamp DESC LIMIT 1) as lastMessageTime,
                 (SELECT COUNT(*) FROM Chat WHERE requestID = c.requestID AND receiverID = ? AND isRead = FALSE) as unreadCount
             FROM Chat c
             INNER JOIN ServiceRequest sr ON c.requestID = sr.requestID
-            LEFT JOIN USER u1 ON sr.customerID = u1.userID
-            LEFT JOIN USER u2 ON sr.providerID = u2.userID
+            LEFT JOIN USER sender ON c.senderID = sender.userID
+            LEFT JOIN USER receiver ON c.receiverID = receiver.userID
             WHERE c.senderID = ? OR c.receiverID = ?
             ORDER BY lastMessageTime DESC
         `;
