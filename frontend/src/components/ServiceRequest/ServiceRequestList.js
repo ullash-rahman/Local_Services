@@ -69,6 +69,46 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
         }
     };
 
+    const handleAcceptRequest = async (requestID) => {
+        if (!window.confirm('Are you sure you want to accept this service request?')) {
+            return;
+        }
+
+        try {
+            const response = await serviceRequestService.acceptServiceRequest(requestID);
+            if (response.success) {
+                loadRequests();
+                alert('Service request accepted successfully!');
+            } else {
+                alert(response.message || 'Failed to accept service request');
+            }
+        } catch (err) {
+            const errorMessage = err.message || err.response?.data?.message || 'Failed to accept service request';
+            alert(errorMessage);
+            console.error('Error accepting service request:', err);
+        }
+    };
+
+    const handleRejectRequest = async (requestID) => {
+        if (!window.confirm('Are you sure you want to reject this service request?')) {
+            return;
+        }
+
+        try {
+            const response = await serviceRequestService.rejectServiceRequest(requestID);
+            if (response.success) {
+                loadRequests();
+                alert('Service request rejected');
+            } else {
+                alert(response.message || 'Failed to reject service request');
+            }
+        } catch (err) {
+            const errorMessage = err.message || err.response?.data?.message || 'Failed to reject service request';
+            alert(errorMessage);
+            console.error('Error rejecting service request:', err);
+        }
+    };
+
     const handleDelete = async (requestID) => {
         if (!window.confirm('Are you sure you want to delete this service request? This action cannot be undone.')) {
             return;
@@ -101,9 +141,11 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
     const getStatusBadgeClass = (status) => {
         const statusClasses = {
             'Pending': 'status-pending',
+            'Accepted': 'status-accepted',
             'Ongoing': 'status-ongoing',
             'Completed': 'status-completed',
-            'Cancelled': 'status-cancelled'
+            'Cancelled': 'status-cancelled',
+            'Rejected': 'status-rejected'
         };
         return statusClasses[status] || 'status-default';
     };
@@ -138,9 +180,11 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
                         >
                             <option value="all">All</option>
                             <option value="Pending">Pending</option>
+                            <option value="Accepted">Accepted</option>
                             <option value="Ongoing">Ongoing</option>
                             <option value="Completed">Completed</option>
                             <option value="Cancelled">Cancelled</option>
+                            <option value="Rejected">Rejected</option>
                         </select>
                     </div>
                 )}
@@ -219,7 +263,23 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
                                         </button>
                                     </>
                                 )}
-                                {userRole === 'Provider' && (
+                                {userRole === 'Provider' && request.status === 'Pending' && (
+                                    <>
+                                        <button
+                                            onClick={() => handleAcceptRequest(request.requestID)}
+                                            className="btn-accept"
+                                        >
+                                            ✓ Accept
+                                        </button>
+                                        <button
+                                            onClick={() => handleRejectRequest(request.requestID)}
+                                            className="btn-reject"
+                                        >
+                                            ✗ Reject
+                                        </button>
+                                    </>
+                                )}
+                                {userRole === 'Provider' && request.status !== 'Pending' && (
                                     <button
                                         onClick={() => handleStartChat(request)}
                                         className="btn-chat"

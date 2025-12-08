@@ -140,17 +140,27 @@
     color: #856404;
 }
 
+.status-accepted {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
 .status-ongoing {
     background: #cfe2ff;
     color: #084298;
 }
 
 .status-completed {
-    background: #d1e7dd;
-    color: #0f5132;
+    background: #d4edda;
+    color: #155724;
 }
 
 .status-cancelled {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.status-rejected {
     background: #f8d7da;
     color: #842029;
 }
@@ -203,7 +213,9 @@
 
 .btn-edit,
 .btn-delete,
-.btn-chat {
+.btn-chat,
+.btn-accept,
+.btn-reject {
     flex: 1;
     padding: 10px;
     border: none;
@@ -245,6 +257,29 @@
     background: linear-gradient(135deg, #4a8bc2 0%, #3a7ba2 100%);
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(90, 159, 212, 0.3);
+}
+
+.btn-accept {
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    color: white;
+}
+
+.btn-accept:hover {
+    background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.btn-reject {
+    background: #f5f5f5;
+    color: #c33;
+    border: 1px solid #ddd;
+}
+
+.btn-reject:hover {
+    background: #fee;
+    border-color: #c33;
+    transform: translateY(-1px);
 }
 
 .service-request-loading {

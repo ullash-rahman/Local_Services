@@ -178,6 +178,28 @@ class ServiceRequest {
         const [rows] = await pool.execute(query, [category]);
         return rows;
     }
+
+    // Accept service request (Provider only)
+    static async acceptRequest(requestID, providerID) {
+        const query = `
+            UPDATE ServiceRequest 
+            SET providerID = ?, status = 'Accepted'
+            WHERE requestID = ? AND status = 'Pending' AND providerID IS NULL
+        `;
+        const [result] = await pool.execute(query, [providerID, requestID]);
+        return result.affectedRows > 0;
+    }
+
+    // Reject service request (Provider only) - just update status, don't assign provider
+    static async rejectRequest(requestID) {
+        const query = `
+            UPDATE ServiceRequest 
+            SET status = 'Rejected'
+            WHERE requestID = ? AND status = 'Pending'
+        `;
+        const [result] = await pool.execute(query, [requestID]);
+        return result.affectedRows > 0;
+    }
 }
 
 module.exports = ServiceRequest;

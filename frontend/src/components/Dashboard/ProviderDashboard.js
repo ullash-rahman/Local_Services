@@ -4,6 +4,7 @@ import { authService } from '../../services/authService';
 import { dashboardService } from '../../services/dashboardService';
 import ServiceRequestList from '../ServiceRequest/ServiceRequestList';
 import ChatHeader from '../Chat/ChatHeader';
+import NotificationCenter from '../Notifications/NotificationCenter';
 import './Dashboard.css';
 
 const ProviderDashboard = () => {
@@ -59,6 +60,7 @@ const ProviderDashboard = () => {
                     <h1>Provider Dashboard</h1>
                     <div className="header-actions">
                         <ChatHeader initialConversation={selectedChatConversation} />
+                        <NotificationCenter />
                         <span className="user-name">Welcome, {user?.name}</span>
                         <button onClick={handleLogout} className="btn-logout">
                             Logout
