@@ -75,6 +75,26 @@ export const serviceRequestService = {
         } catch (error) {
             throw error.response?.data || { message: 'Failed to fetch service requests' };
         }
+    },
+
+    // Accept service request (Provider only)
+    acceptServiceRequest: async (requestID) => {
+        try {
+            const response = await api.post(`/service-requests/${requestID}/accept`);
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: 'Failed to accept service request' };
+        }
+    },
+
+    // Reject service request (Provider only)
+    rejectServiceRequest: async (requestID) => {
+        try {
+            const response = await api.post(`/service-requests/${requestID}/reject`);
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: 'Failed to reject service request' };
+        }
     }
 };
 
