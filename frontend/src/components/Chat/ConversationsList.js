@@ -68,14 +68,27 @@ const ConversationsList = ({ onSelectConversation, selectedRequestID }) => {
                     onClick={() => onSelectConversation(conv)}
                 >
                     <div className="conversation-header">
-                        <span className="conversation-name">{conv.otherUserName}</span>
+                        <div className="conversation-name-section">
+                            <span className="conversation-name">{conv.otherUserName || 'Unknown User'}</span>
+                            <span className="conversation-role">({conv.otherUserRole || 'User'})</span>
+                        </div>
                         <span className="conversation-time">{formatTime(conv.lastMessageTime)}</span>
                     </div>
-                    <div className="conversation-preview">{conv.lastMessage}</div>
+                    <div className="conversation-request-info">
+                        <span className="conversation-request-id">Request #{conv.requestID}</span>
+                        <span className="conversation-category">{conv.category || 'Service'}</span>
+                    </div>
+                    {conv.requestDescription && (
+                        <div className="conversation-request-description" title={conv.requestDescription}>
+                            {conv.requestDescription.length > 60 
+                                ? conv.requestDescription.substring(0, 60) + '...' 
+                                : conv.requestDescription}
+                        </div>
+                    )}
+                    <div className="conversation-preview">{conv.lastMessage || 'No messages yet'}</div>
                     <div className="conversation-meta">
-                        <span className="conversation-category">{conv.category}</span>
                         {conv.unreadCount > 0 && (
-                            <span className="unread-badge">{conv.unreadCount}</span>
+                            <span className="unread-badge">{conv.unreadCount} unread</span>
                         )}
                     </div>
                 </div>

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { dashboardService } from '../../services/dashboardService';
-import ConversationsList from '../Chat/ConversationsList';
-import Chat from '../Chat/Chat';
+import CreateServiceRequest from '../ServiceRequest/CreateServiceRequest';
+import ServiceRequestList from '../ServiceRequest/ServiceRequestList';
+import ChatHeader from '../Chat/ChatHeader';
 import './Dashboard.css';
 
 const CustomerDashboard = () => {
@@ -11,7 +12,8 @@ const CustomerDashboard = () => {
     const [user, setUser] = useState(null);
     const [dashboardData, setDashboardData] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [selectedConversation, setSelectedConversation] = useState(null);
+    const [showCreateRequest, setShowCreateRequest] = useState(false);
+    const [selectedChatConversation, setSelectedChatConversation] = useState(null);
 
     useEffect(() => {
         // Check authentication
@@ -58,6 +60,7 @@ const CustomerDashboard = () => {
                 <div className="header-content">
                     <h1>Customer Dashboard</h1>
                     <div className="header-actions">
+                        <ChatHeader initialConversation={selectedChatConversation} />
                         <span className="user-name">Welcome, {user?.name}</span>
                         <button onClick={handleLogout} className="btn-logout">
                             Logout
@@ -78,9 +81,51 @@ const CustomerDashboard = () => {
                         </Link>
                     </div>
                     <div className="welcome-section">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <div>
                         <h2>Welcome to Your Dashboard</h2>
                         <p>This is your customer dashboard. Features will be added here.</p>
+                            </div>
+                            {!showCreateRequest && (
+                                <button 
+                                    onClick={() => setShowCreateRequest(true)}
+                                    className="btn-create-request"
+                                    style={{
+                                        padding: '12px 24px',
+                                        background: 'linear-gradient(135deg, #5a9fd4 0%, #4a8bc2 100%)',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        fontWeight: '500',
+                                        transition: 'all 0.3s'
+                                    }}
+                                >
+                                    + Create Service Request
+                                </button>
+                            )}
+                        </div>
                     </div>
+
+                    {showCreateRequest && (
+                        <div style={{ marginBottom: '30px' }}>
+                            <CreateServiceRequest
+                                onSuccess={(request) => {
+                                    setShowCreateRequest(false);
+                                    // Reload dashboard data to update stats
+                                    loadDashboardData();
+                                }}
+                                onCancel={() => setShowCreateRequest(false)}
+                            />
+                        </div>
+                    )}
+
+                    {!showCreateRequest && (
+                        <div style={{ marginBottom: '30px' }}>
+                            <ServiceRequestList userRole="Customer" />
+                        </div>
+                    )}
 
                     {dashboardData && (
                         <div className="stats-section">
@@ -98,30 +143,6 @@ const CustomerDashboard = () => {
                             </div>
                         </div>
                     )}
-
-                    <div className="chat-section">
-                        <div className="chat-section-header">
-                            <h3>Messages</h3>
-                        </div>
-                        <div className="chat-layout">
-                            <ConversationsList
-                                onSelectConversation={setSelectedConversation}
-                                selectedRequestID={selectedConversation?.requestID}
-                            />
-                            {selectedConversation ? (
-                                <Chat
-                                    requestID={selectedConversation.requestID}
-                                    otherUserID={selectedConversation.otherUserID}
-                                    otherUserName={selectedConversation.otherUserName}
-                                    onClose={() => setSelectedConversation(null)}
-                                />
-                            ) : (
-                                <div className="chat-empty" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                                    <p>Select a conversation to start chatting</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
                 </div>
             </main>
         </div>

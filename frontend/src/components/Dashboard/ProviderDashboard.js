@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { dashboardService } from '../../services/dashboardService';
-import ConversationsList from '../Chat/ConversationsList';
-import Chat from '../Chat/Chat';
+import ServiceRequestList from '../ServiceRequest/ServiceRequestList';
+import ChatHeader from '../Chat/ChatHeader';
 import './Dashboard.css';
 
 const ProviderDashboard = () => {
@@ -11,7 +11,7 @@ const ProviderDashboard = () => {
     const [user, setUser] = useState(null);
     const [dashboardData, setDashboardData] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [selectedConversation, setSelectedConversation] = useState(null);
+    const [selectedChatConversation, setSelectedChatConversation] = useState(null);
 
     useEffect(() => {
         // Check authentication
@@ -58,6 +58,7 @@ const ProviderDashboard = () => {
                 <div className="header-content">
                     <h1>Provider Dashboard</h1>
                     <div className="header-actions">
+                        <ChatHeader initialConversation={selectedChatConversation} />
                         <span className="user-name">Welcome, {user?.name}</span>
                         <button onClick={handleLogout} className="btn-logout">
                             Logout
@@ -103,28 +104,11 @@ const ProviderDashboard = () => {
                         </div>
                     )}
 
-                    <div className="chat-section">
-                        <div className="chat-section-header">
-                            <h3>Messages</h3>
-                        </div>
-                        <div className="chat-layout">
-                            <ConversationsList
-                                onSelectConversation={setSelectedConversation}
-                                selectedRequestID={selectedConversation?.requestID}
-                            />
-                            {selectedConversation ? (
-                                <Chat
-                                    requestID={selectedConversation.requestID}
-                                    otherUserID={selectedConversation.otherUserID}
-                                    otherUserName={selectedConversation.otherUserName}
-                                    onClose={() => setSelectedConversation(null)}
-                                />
-                            ) : (
-                                <div className="chat-empty" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                                    <p>Select a conversation to start chatting</p>
-                                </div>
-                            )}
-                        </div>
+                    <div style={{ marginBottom: '30px' }}>
+                        <ServiceRequestList 
+                            userRole="Provider" 
+                            onStartChat={(conversation) => setSelectedChatConversation(conversation)}
+                        />
                     </div>
                 </div>
             </main>
