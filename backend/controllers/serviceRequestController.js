@@ -310,6 +310,144 @@ const getServiceRequestsByCategory = async (req, res) => {
     }
 };
 
+// Accept service request (Provider only)
+const acceptServiceRequest = async (req, res) => {
+    try {
+        console.log('Accept service request called:', req.params);
+        const providerID = req.user.userID;
+        const { requestID } = req.params;
+
+        // Verify request exists and is pending
+        const request = await ServiceRequest.findById(requestID);
+        if (!request) {
+            return res.status(404).json({
+                success: false,
+                message: 'Service request not found'
+            });
+        }
+
+        if (request.status !== 'Pending') {
+            return res.status(400).json({
+                success: false,
+                message: 'Service request is not in Pending status'
+            });
+        }
+
+        if (request.providerID !== null) {
+            return res.status(400).json({
+                success: false,
+                message: 'Service request has already been accepted by another provider'
+            });
+        }
+
+        // Accept the request
+        const accepted = await ServiceRequest.acceptRequest(requestID, providerID);
+
+        if (!accepted) {
+            return res.status(400).json({
+                success: false,
+                message: 'Failed to accept service request. It may have been accepted by another provider.'
+            });
+        }
+
+        // Get updated request
+        const updatedRequest = await ServiceRequest.findById(requestID);
+
+        // Create notification for customer
+        try {
+            const Notification = require('../models/Notification');
+            const User = require('../models/User');
+            const provider = await User.findById(providerID);
+            
+            if (!provider) {
+                console.error('Provider not found:', providerID);
+            } else {
+                const notification = await Notification.create({
+                    userID: request.customerID,
+                    requestID: requestID,
+                    message: `${provider.name} has accepted your service request for ${request.category}`,
+                    notificationType: 'request_accepted'
+                });
+
+                console.log('Notification created:', notification);
+
+                // Emit notification via Socket.io if available
+                if (global.io) {
+                    global.io.to(`user_${request.customerID}`).emit('new_notification', {
+                        message: `${provider.name} has accepted your service request`,
+                        notificationType: 'request_accepted',
+                        requestID: requestID
+                    });
+                    console.log('Notification emitted to user:', request.customerID);
+                } else {
+                    console.warn('Socket.io not available for notification emission');
+                }
+            }
+        } catch (notifError) {
+            console.error('Error creating accept notification:', notifError);
+            // Don't fail the accept if notification fails
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Service request accepted successfully',
+            data: { request: updatedRequest }
+        });
+    } catch (error) {
+        console.error('Accept service request error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while accepting service request',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// Reject service request (Provider only)
+const rejectServiceRequest = async (req, res) => {
+    try {
+        const { requestID } = req.params;
+
+        // Verify request exists and is pending
+        const request = await ServiceRequest.findById(requestID);
+        if (!request) {
+            return res.status(404).json({
+                success: false,
+                message: 'Service request not found'
+            });
+        }
+
+        if (request.status !== 'Pending') {
+            return res.status(400).json({
+                success: false,
+                message: 'Service request is not in Pending status'
+            });
+        }
+
+        // Reject the request
+        const rejected = await ServiceRequest.rejectRequest(requestID);
+
+        if (!rejected) {
+            return res.status(400).json({
+                success: false,
+                message: 'Failed to reject service request'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Service request rejected'
+        });
+    } catch (error) {
+        console.error('Reject service request error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while rejecting service request',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
 module.exports = {
     createServiceRequest,
     getServiceRequestById,
@@ -317,6 +455,8 @@ module.exports = {
     getPendingRequests,
     updateServiceRequest,
     deleteServiceRequest,
-    getServiceRequestsByCategory
+    getServiceRequestsByCategory,
+    acceptServiceRequest,
+    rejectServiceRequest
 };
 

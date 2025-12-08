@@ -8,7 +8,9 @@ const {
     getPendingRequests,
     updateServiceRequest,
     deleteServiceRequest,
-    getServiceRequestsByCategory
+    getServiceRequestsByCategory,
+    acceptServiceRequest,
+    rejectServiceRequest
 } = require('../controllers/serviceRequestController');
 
 // Create service request (Customer only)
@@ -19,6 +21,12 @@ router.get('/pending/all', authenticate, authorize('Provider'), getPendingReques
 
 // Get service requests by category - MUST come before /:requestID route
 router.get('/category/:category', authenticate, getServiceRequestsByCategory);
+
+// Accept service request (Provider only) - MUST come before /:requestID route
+router.post('/:requestID/accept', authenticate, authorize('Provider'), acceptServiceRequest);
+
+// Reject service request (Provider only) - MUST come before /:requestID route
+router.post('/:requestID/reject', authenticate, authorize('Provider'), rejectServiceRequest);
 
 // Get my service requests (Customer or Provider)
 router.get('/', authenticate, getMyServiceRequests);
@@ -31,9 +39,6 @@ router.put('/:requestID', authenticate, authorize('Customer'), updateServiceRequ
 
 // Delete service request (Customer only)
 router.delete('/:requestID', authenticate, authorize('Customer'), deleteServiceRequest);
-
-// Get service requests by category
-router.get('/category/:category', authenticate, getServiceRequestsByCategory);
 
 module.exports = router;
 
