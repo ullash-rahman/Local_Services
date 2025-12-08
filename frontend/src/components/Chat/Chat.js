@@ -4,13 +4,14 @@ import { authService } from '../../services/authService';
 import { chatService } from '../../services/chatService';
 import './Chat.css';
 
-const Chat = ({ requestID, otherUserID, otherUserName, onClose }) => {
+const Chat = ({ requestID, otherUserID, otherUserName, onClose, requestCategory, requestDescription }) => {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [socket, setSocket] = useState(null);
     const [isTyping, setIsTyping] = useState(false);
     const [typingUser, setTypingUser] = useState(null);
+    const [effectiveReceiverID, setEffectiveReceiverID] = useState(otherUserID);
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     const currentUser = authService.getCurrentUser();
@@ -77,6 +78,33 @@ const Chat = ({ requestID, otherUserID, otherUserName, onClose }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [requestID]);
 
+    // Determine effective receiver ID from messages if otherUserID is not provided or incorrect
+    useEffect(() => {
+        if (messages.length > 0 && currentUser) {
+            // Find the other user from messages
+            const firstMessage = messages[0];
+            let determinedReceiverID = otherUserID;
+            
+            if (!determinedReceiverID || determinedReceiverID === currentUser.userID) {
+                // Determine from messages
+                if (firstMessage.senderID === currentUser.userID) {
+                    determinedReceiverID = firstMessage.receiverID;
+                } else {
+                    determinedReceiverID = firstMessage.senderID;
+                }
+                
+                if (determinedReceiverID && determinedReceiverID !== currentUser.userID) {
+                    setEffectiveReceiverID(determinedReceiverID);
+                    console.log('Determined receiver ID from messages:', determinedReceiverID);
+                }
+            } else {
+                setEffectiveReceiverID(determinedReceiverID);
+            }
+        } else if (otherUserID && otherUserID !== currentUser.userID) {
+            setEffectiveReceiverID(otherUserID);
+        }
+    }, [messages, currentUser, otherUserID]);
+
     // Mark messages as read when component mounts or messages change
     useEffect(() => {
         if (messages.length > 0 && socket) {
@@ -96,10 +124,23 @@ const Chat = ({ requestID, otherUserID, otherUserName, onClose }) => {
             setLoading(true);
             const response = await chatService.getMessages(requestID);
             if (response.success) {
-                setMessages(response.data);
+                setMessages(response.data || []);
+                
+                // Log for debugging - check if otherUserID is set correctly
+                if (response.data && response.data.length > 0 && currentUser) {
+                    const firstMessage = response.data[0];
+                    const determinedReceiver = firstMessage.senderID === currentUser.userID 
+                        ? firstMessage.receiverID 
+                        : firstMessage.senderID;
+                    
+                    if (otherUserID && otherUserID !== determinedReceiver) {
+                        console.warn('otherUserID mismatch. Provided:', otherUserID, 'Determined from messages:', determinedReceiver);
+                    }
+                }
             }
         } catch (error) {
             console.error('Error loading messages:', error);
+            alert('Failed to load messages. Please refresh the page.');
         } finally {
             setLoading(false);
         }
@@ -113,6 +154,15 @@ const Chat = ({ requestID, otherUserID, otherUserName, onClose }) => {
         e.preventDefault();
         if (!newMessage.trim() || !socket) return;
 
+        // Use effective receiver ID (determined from props or messages)
+        const receiverID = effectiveReceiverID || otherUserID;
+        
+        if (!receiverID || receiverID === currentUser.userID) {
+            console.error('Cannot determine receiver ID. otherUserID:', otherUserID, 'effectiveReceiverID:', effectiveReceiverID, 'messages:', messages.length);
+            alert('Error: Cannot determine message recipient. Please refresh the page or contact support.');
+            return;
+        }
+
         const messageText = newMessage.trim();
         setNewMessage('');
 
@@ -120,7 +170,7 @@ const Chat = ({ requestID, otherUserID, otherUserName, onClose }) => {
             // Emit message via Socket.io
             socket.emit('send_message', {
                 requestID,
-                receiverID: otherUserID,
+                receiverID: receiverID,
                 messageText
             });
 
@@ -130,6 +180,7 @@ const Chat = ({ requestID, otherUserID, otherUserName, onClose }) => {
             console.error('Error sending message:', error);
             // Restore message on error
             setNewMessage(messageText);
+            alert('Failed to send message. Please try again.');
         }
     };
 
@@ -180,8 +231,22 @@ const Chat = ({ requestID, otherUserID, otherUserName, onClose }) => {
         <div className="chat-container">
             <div className="chat-header">
                 <div className="chat-header-info">
-                    <h3>Chat with {otherUserName}</h3>
-                    <span className="chat-request-id">Request #{requestID}</span>
+                    <div className="chat-header-main">
+                        <h3>Chat with {otherUserName}</h3>
+                        <span className="chat-request-id">Request #{requestID}</span>
+                    </div>
+                    {requestCategory && (
+                        <div className="chat-request-info">
+                            <span className="chat-request-category">{requestCategory}</span>
+                            {requestDescription && (
+                                <span className="chat-request-description" title={requestDescription}>
+                                    {requestDescription.length > 50 
+                                        ? requestDescription.substring(0, 50) + '...' 
+                                        : requestDescription}
+                                </span>
+                            )}
+                        </div>
+                    )}
                 </div>
                 {onClose && (
                     <button className="chat-close-btn" onClick={onClose}>×</button>
@@ -200,6 +265,9 @@ const Chat = ({ requestID, otherUserID, otherUserName, onClose }) => {
                                 className={`chat-message ${isOwnMessage ? 'own-message' : 'other-message'}`}
                             >
                                 <div className="message-content">
+                                    {!isOwnMessage && message.senderName && (
+                                        <span className="message-sender-name">{message.senderName}</span>
+                                    )}
                                     <p>{message.messageText}</p>
                                     <span className="message-time">
                                         {formatTime(message.timestamp)}
@@ -221,9 +289,10 @@ const Chat = ({ requestID, otherUserID, otherUserName, onClose }) => {
                 <input
                     type="text"
                     className="chat-input"
-                    placeholder="Type a message..."
+                    placeholder={effectiveReceiverID ? "Type a message..." : "Loading recipient information..."}
                     value={newMessage}
                     onChange={handleTyping}
+                    disabled={!effectiveReceiverID && messages.length === 0}
                     onKeyPress={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
@@ -231,7 +300,12 @@ const Chat = ({ requestID, otherUserID, otherUserName, onClose }) => {
                         }
                     }}
                 />
-                <button type="submit" className="chat-send-btn" disabled={!newMessage.trim()}>
+                <button 
+                    type="submit" 
+                    className="chat-send-btn" 
+                    disabled={!newMessage.trim() || (!effectiveReceiverID && messages.length === 0) || !socket}
+                    title={!socket ? "Connecting..." : (!effectiveReceiverID && messages.length === 0 ? "Waiting for recipient info..." : "Send message")}
+                >
                     Send
                 </button>
             </form>
