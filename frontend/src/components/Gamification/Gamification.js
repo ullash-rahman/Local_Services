@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './Gamification.css';
 import * as gamificationService from '../../services/gamificationService';
 import { authService } from '../../services/authService';
 
 const Gamification = () => {
+  const navigate = useNavigate();
   const user = authService.getCurrentUser();
   const userID = user?.userID;
+  const userRole = user?.role;
   const [dashboardData, setDashboardData] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,6 +17,9 @@ const Gamification = () => {
   useEffect(() => {
     if (userID) {
       loadGamificationData();
+    } else {
+      setError('User ID not found. Please log in again.');
+      setLoading(false);
     }
   }, [userID]);
 
@@ -24,8 +30,8 @@ const Gamification = () => {
 
       // Fetch dashboard data
       const dashboardResult = await gamificationService.getGamificationDashboard(userID);
-      const actualData = dashboardResult?.gamification || dashboardResult;
-      setDashboardData(actualData);
+      // dashboardResult is { gamification: {...}, ranking: {...}, recentActivity: [...] }
+      setDashboardData(dashboardResult);
 
       // Fetch leaderboard
       const leaderboardResult = await gamificationService.getLeaderboard(50);
@@ -73,12 +79,29 @@ const Gamification = () => {
     );
   }
 
-  const { gamification, ranking } = dashboardData;
-  const stats = gamification?.[0] || {};
-  const userRanking = ranking?.[0] || {};
+  // dashboardData structure: { gamification: {...}, ranking: {...}, recentActivity: [...] }
+  const stats = dashboardData.gamification || {};
+  const userRanking = dashboardData.ranking || {};
+
+  const handleBackToDashboard = () => {
+    if (userRole === 'Provider') {
+      navigate('/dashboard/provider');
+    } else if (userRole === 'Customer') {
+      navigate('/dashboard/customer');
+    } else {
+      navigate('/login');
+    }
+  };
 
   return (
     <div className="gamification-container">
+      {/* Back Button at Top */}
+      <div className="gamification-header">
+        <button onClick={handleBackToDashboard} className="back-btn">
+          ← Back to Dashboard
+        </button>
+      </div>
+
       {/* Stats Section */}
       <div className="gamification-section stats-section">
         <h2 className="section-title">🏆 Your Stats</h2>
@@ -132,7 +155,7 @@ const Gamification = () => {
                   >
                     <td className="rank-col">#{index + 1}</td>
                     <td className="user-col">
-                      {user.userID === userID ? `You (ID: ${user.userID})` : `User ${user.userID}`}
+                      {user.userID === userID ? `You` : (user.userName || `User ${user.userID}`)}
                     </td>
                     <td className="points-col">{user.totalPoints}</td>
                     <td className="tier-col">{getTier(user.totalPoints)}</td>

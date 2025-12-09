@@ -44,6 +44,9 @@ exports.addPointsForJobCompletion = async (req, res) => {
 exports.getGamificationDashboard = async (req, res) => {
   try {
     const { userID } = req.params;
+    
+    console.log('getGamificationDashboard called with userID:', userID);
+    console.log('userID type:', typeof userID);
 
     if (!userID) {
       return res.status(400).json({
@@ -68,10 +71,11 @@ exports.getGamificationDashboard = async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching dashboard:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Error fetching dashboard',
-      error: error.message
+      error: error.message || 'Unknown error occurred'
     });
   }
 };

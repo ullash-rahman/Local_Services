@@ -3,11 +3,20 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api
 // Get user's gamification dashboard
 export const getGamificationDashboard = async (userID) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/gamification/dashboard/${userID}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch gamification dashboard');
-    }
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/gamification/dashboard/${userID}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      }
+    });
+    
     const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Error fetching dashboard');
+    }
+    
     return data.data;
   } catch (error) {
     console.error('Error fetching gamification dashboard:', error);
@@ -18,11 +27,20 @@ export const getGamificationDashboard = async (userID) => {
 // Get leaderboard
 export const getLeaderboard = async (limit = 50) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/gamification/leaderboard?limit=${limit}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch leaderboard');
-    }
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/gamification/leaderboard?limit=${limit}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      }
+    });
+    
     const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch leaderboard');
+    }
+    
     return data.data;
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
