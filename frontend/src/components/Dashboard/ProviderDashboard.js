@@ -55,13 +55,13 @@ const ProviderDashboard = () => {
 
     return (
         <div className="dashboard-container">
-            <header className="dashboard-header">
+            <header className="dashboard-header">j
                 <div className="header-content">
                     <h1>Provider Dashboard</h1>
                     <div className="header-actions">
                         <ChatHeader initialConversation={selectedChatConversation} />
                         <NotificationCenter />
-                        <span className="user-name">Welcome, {user?.name}</span>
+                        <span className="user-name">Welcome, <span onClick={() => navigate('/gamification')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>{user?.name}</span></span>
                         <button onClick={handleLogout} className="btn-logout">
                             Logout
                         </button>

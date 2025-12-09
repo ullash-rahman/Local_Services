@@ -7,6 +7,7 @@ import ProviderDashboard from './components/Dashboard/ProviderDashboard';
 import { authService } from './services/authService';
 import BundleManagerPage from './components/Bundle/BundleManagerPage';
 import BundleListPage from './components/Bundle/BundleListPage';
+import Gamification from './components/Gamification/Gamification';
 import './App.css';
 
 // Protected Route Component
@@ -67,7 +68,14 @@ function App() {
                             </ProtectedRoute>
                         }
                     />
-                    
+                    <Route
+                        path="/gamification"
+                        element={
+                            <ProtectedRoute>
+                                <Gamification />
+                            </ProtectedRoute>
+                        }
+                    />
                     {/* Default redirect */}
                     <Route path="/" element={<Navigate to="/login" replace />} />
                     <Route path="*" element={<Navigate to="/login" replace />} />
