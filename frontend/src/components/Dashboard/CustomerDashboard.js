@@ -63,7 +63,7 @@ const CustomerDashboard = () => {
                     <div className="header-actions">
                         <ChatHeader initialConversation={selectedChatConversation} />
                         <NotificationCenter />
-                        <span className="user-name">Welcome, {user?.name}</span>
+                        <span className="user-name">Welcome, <span onClick={() => navigate('/gamification')}style={{ cursor: 'pointer', textDecoration: 'underline' }}>{user?.name}</span></span>
                         <button onClick={handleLogout} className="btn-logout">
                             Logout
                         </button>
