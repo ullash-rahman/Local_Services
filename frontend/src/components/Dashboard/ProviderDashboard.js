@@ -55,13 +55,13 @@ const ProviderDashboard = () => {
 
     return (
         <div className="dashboard-container">
-            <header className="dashboard-header">j
+            <header className="dashboard-header">
                 <div className="header-content">
                     <h1>Provider Dashboard</h1>
                     <div className="header-actions">
                         <ChatHeader initialConversation={selectedChatConversation} />
                         <NotificationCenter />
-                        <span className="user-name">Welcome, <span onClick={() => navigate('/gamification')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>{user?.name}</span></span>
+                        <span className="user-name">Welcome, {user?.name}</span>
                         <button onClick={handleLogout} className="btn-logout">
                             Logout
                         </button>
@@ -79,6 +79,9 @@ const ProviderDashboard = () => {
                         </Link>
                         <Link to="/dashboard/provider/servicebundle" className="nav-link">
                             Service Bundles
+                        </Link>
+                        <Link to="/gamification" className="nav-link">
+                            Gamification
                         </Link>
                       </div>
                         <h2>Welcome to Your Dashboard</h2>
