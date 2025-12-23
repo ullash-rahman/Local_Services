@@ -80,6 +80,9 @@ const ProviderDashboard = () => {
                         <Link to="/dashboard/provider/servicebundle" className="nav-link">
                             Service Bundles
                         </Link>
+                        <Link to="/gamification" className="nav-link">
+                            Gamification
+                        </Link>
                       </div>
                         <h2>Welcome to Your Dashboard</h2>
                         <p>This is your provider dashboard. Features will be added here.</p>

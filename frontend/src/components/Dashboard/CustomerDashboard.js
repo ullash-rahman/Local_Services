@@ -81,6 +81,9 @@ const CustomerDashboard = () => {
                         <Link to="/dashboard/customer/bundles" className="nav-link">
                             Browse Bundles
                         </Link>
+                        <Link to="/gamification" className="nav-link">
+                            Gamification
+                        </Link>
                     </div>
                     <div className="welcome-section">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
