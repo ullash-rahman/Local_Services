@@ -1,4 +1,3 @@
-
 CREATE DATABASE IF NOT EXISTS local_services_db;
 USE local_services_db;
 

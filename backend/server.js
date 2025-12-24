@@ -11,6 +11,7 @@ const Chat = require('./models/Chat');
 const bundleRoutes = require('./routes/bundleRoutes');
 const serviceRequestRoutes = require('./routes/serviceRequestRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const complaintRoutes = require('./routes/complaintRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -31,6 +32,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/bundles', bundleRoutes);
 app.use('/api/service-requests', serviceRequestRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/complaints', complaintRoutes);
 
 
 // Health check route
