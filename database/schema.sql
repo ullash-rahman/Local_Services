@@ -229,7 +229,7 @@ CREATE TABLE IF NOT EXISTS Chat (
 -- ANALYTICS & GAMIFICATION
 -- =====================================================
 
--- Analytics Table
+-- Analytics Table (Extended for Provider Performance Analytics)
 CREATE TABLE IF NOT EXISTS Analytics (
     analyticsID INT PRIMARY KEY AUTO_INCREMENT,
     providerID INT NOT NULL,
@@ -237,6 +237,14 @@ CREATE TABLE IF NOT EXISTS Analytics (
     averageRating DECIMAL(3, 2) DEFAULT 0.00,
     jobsCompleted INT DEFAULT 0,
     performanceScore DECIMAL(5, 2) DEFAULT 0.00,
+    responseTimeAvg DECIMAL(10, 2) DEFAULT 0,
+    completionRate DECIMAL(5, 2) DEFAULT 0,
+    cancellationRate DECIMAL(5, 2) DEFAULT 0,
+    uniqueCustomers INT DEFAULT 0,
+    repeatCustomerRate DECIMAL(5, 2) DEFAULT 0,
+    monthlyRevenue JSON,
+    categoryBreakdown JSON,
+    lastFullUpdate DATETIME,
     lastUpdated DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (providerID) REFERENCES USER(userID) ON DELETE CASCADE,
     UNIQUE KEY unique_provider (providerID),
@@ -257,6 +265,101 @@ CREATE TABLE IF NOT EXISTS Gamification (
     UNIQUE KEY unique_user (userID),
     INDEX idx_points (totalPoints),
     INDEX idx_rank (monthlyRank)
+);
+
+-- =====================================================
+-- PROVIDER PERFORMANCE ANALYTICS TABLES
+-- =====================================================
+
+-- ProviderGoal Table (Goal Tracking)
+CREATE TABLE IF NOT EXISTS ProviderGoal (
+    goalID INT PRIMARY KEY AUTO_INCREMENT,
+    providerID INT NOT NULL,
+    goalType ENUM('revenue', 'services', 'rating', 'customers') NOT NULL,
+    targetValue DECIMAL(10, 2) NOT NULL,
+    currentValue DECIMAL(10, 2) DEFAULT 0,
+    startDate DATE NOT NULL,
+    targetDate DATE NOT NULL,
+    status ENUM('active', 'completed', 'cancelled') DEFAULT 'active',
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (providerID) REFERENCES USER(userID) ON DELETE CASCADE,
+    INDEX idx_provider (providerID),
+    INDEX idx_status (status),
+    INDEX idx_target_date (targetDate),
+    INDEX idx_goal_type (goalType)
+);
+
+-- ScheduledReport Table (Report Scheduling)
+CREATE TABLE IF NOT EXISTS ScheduledReport (
+    scheduleID INT PRIMARY KEY AUTO_INCREMENT,
+    providerID INT NOT NULL,
+    reportType VARCHAR(50) NOT NULL,
+    frequency ENUM('daily', 'weekly', 'monthly') NOT NULL,
+    nextRunDate DATETIME NOT NULL,
+    lastRunDate DATETIME,
+    emailRecipients JSON,
+    reportOptions JSON,
+    isActive BOOLEAN DEFAULT TRUE,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (providerID) REFERENCES USER(userID) ON DELETE CASCADE,
+    INDEX idx_provider (providerID),
+    INDEX idx_next_run (nextRunDate),
+    INDEX idx_active (isActive),
+    INDEX idx_frequency (frequency)
+);
+
+-- GeneratedReport Table (Report History)
+CREATE TABLE IF NOT EXISTS GeneratedReport (
+    reportID INT PRIMARY KEY AUTO_INCREMENT,
+    providerID INT NOT NULL,
+    reportType VARCHAR(50) NOT NULL,
+    dateRangeStart DATE NOT NULL,
+    dateRangeEnd DATE NOT NULL,
+    filePath VARCHAR(500),
+    fileFormat ENUM('pdf', 'csv', 'xlsx') NOT NULL,
+    generatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expiresAt DATETIME,
+    FOREIGN KEY (providerID) REFERENCES USER(userID) ON DELETE CASCADE,
+    INDEX idx_provider (providerID),
+    INDEX idx_generated_at (generatedAt),
+    INDEX idx_report_type (reportType),
+    INDEX idx_expires_at (expiresAt)
+);
+
+-- PerformanceAlert Table (Threshold Alerts)
+CREATE TABLE IF NOT EXISTS PerformanceAlert (
+    alertID INT PRIMARY KEY AUTO_INCREMENT,
+    providerID INT NOT NULL,
+    metricType VARCHAR(50) NOT NULL,
+    thresholdValue DECIMAL(10, 2) NOT NULL,
+    comparisonOperator ENUM('above', 'below', 'equals') NOT NULL,
+    isActive BOOLEAN DEFAULT TRUE,
+    lastTriggered DATETIME,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (providerID) REFERENCES USER(userID) ON DELETE CASCADE,
+    INDEX idx_provider (providerID),
+    INDEX idx_active (isActive),
+    INDEX idx_metric_type (metricType)
+);
+
+-- PlatformBenchmark Table (Benchmarking Data)
+CREATE TABLE IF NOT EXISTS PlatformBenchmark (
+    benchmarkID INT PRIMARY KEY AUTO_INCREMENT,
+    metricType VARCHAR(50) NOT NULL,
+    category VARCHAR(100),
+    averageValue DECIMAL(10, 2) NOT NULL,
+    medianValue DECIMAL(10, 2),
+    percentile25 DECIMAL(10, 2),
+    percentile75 DECIMAL(10, 2),
+    percentile90 DECIMAL(10, 2),
+    sampleSize INT NOT NULL,
+    calculatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_metric (metricType),
+    INDEX idx_category (category),
+    INDEX idx_calculated (calculatedAt)
 );
 
 -- =====================================================

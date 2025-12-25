@@ -1,0 +1,163 @@
+/* Charts Container Styles */
+.chart-container {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.chart-container.chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #666;
+  font-style: italic;
+}
+
+/* Chart Title */
+.chart-title {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+}
+
+/* Custom Tooltip Styles */
+.chart-tooltip {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 10px 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 13px;
+}
+
+.chart-tooltip-label {
+  margin: 0 0 6px 0;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 6px;
+}
+
+.chart-tooltip-value {
+  margin: 4px 0;
+  font-weight: 500;
+}
+
+/* Pie Chart Center Text (for donut charts) */
+.pie-center-text {
+  fill: #333;
+}
+
+/* Legend Styles */
+.recharts-legend-wrapper {
+  padding-top: 10px !important;
+}
+
+.recharts-legend-item {
+  margin-right: 16px !important;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .chart-container {
+    padding: 12px;
+  }
+
+  .chart-title {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+
+  .chart-tooltip {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+
+  .recharts-legend-item {
+    margin-right: 10px !important;
+  }
+
+  /* Adjust chart margins for smaller screens */
+  .recharts-wrapper {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .chart-container {
+    padding: 10px;
+    border-radius: 6px;
+  }
+
+  .chart-title {
+    font-size: 13px;
+  }
+
+  .chart-tooltip {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+
+  /* Hide legend on very small screens if needed */
+  .recharts-legend-wrapper {
+    font-size: 10px;
+  }
+}
+
+/* Animation for chart loading */
+@keyframes chartFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chart-container {
+  animation: chartFadeIn 0.3s ease-out;
+}
+
+/* Hover effects */
+.chart-container:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+  transition: box-shadow 0.2s ease;
+}
+
+/* Grid line styling */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: #e8e8e8;
+}
+
+/* Axis styling */
+.recharts-xAxis .recharts-cartesian-axis-tick-value,
+.recharts-yAxis .recharts-cartesian-axis-tick-value {
+  fill: #666;
+}
+
+/* Active dot styling for line charts */
+.recharts-active-dot {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+/* Bar chart hover effect */
+.recharts-bar-rectangle:hover {
+  filter: brightness(1.1);
+  transition: filter 0.2s ease;
+}
+
+/* Pie chart slice hover effect */
+.recharts-pie-sector:hover {
+  filter: brightness(1.05);
+  transition: filter 0.2s ease;
+}
