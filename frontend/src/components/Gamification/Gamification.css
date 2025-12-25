@@ -1,0 +1,272 @@
+.gamification-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.gamification-header {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.gamification-section {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.section-title {
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 15px;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  opacity: 0.9;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: bold;
+  display: block;
+}
+
+/* Tier Badge */
+.tier-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  text-align: center;
+}
+
+.tier-badge h3 {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+}
+
+.tier-name {
+  display: block;
+  font-size: 28px;
+  font-weight: bold;
+  margin-top: 5px;
+}
+
+.tier-message {
+  margin: 12px 0 0 0;
+  font-size: 14px;
+  opacity: 0.95;
+}
+
+/* Leaderboard */
+.leaderboard-wrapper {
+  overflow-x: auto;
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.leaderboard-table thead {
+  background: #f5f5f5;
+  border-bottom: 2px solid #ddd;
+}
+
+.leaderboard-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+}
+
+.leaderboard-table td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.leaderboard-table tr.current-user {
+  background: #e7f3ff;
+  font-weight: 600;
+}
+
+.leaderboard-table tr:hover {
+  background: #f9f9f9;
+}
+
+.rank-col {
+  font-weight: bold;
+  color: #667eea;
+  width: 70px;
+}
+
+.user-col {
+  flex: 1;
+}
+
+.points-col {
+  color: #28a745;
+  font-weight: 600;
+  width: 100px;
+}
+
+.tier-col {
+  width: 100px;
+  text-align: center;
+}
+
+/* Loading & Error */
+.loading {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+  font-size: 16px;
+}
+
+.error-message {
+  background: #ffe0e0;
+  color: #c00;
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid #c00;
+}
+
+.error-message p {
+  margin: 0 0 15px 0;
+}
+
+.no-data {
+  text-align: center;
+  color: #999;
+  padding: 30px 20px;
+  font-style: italic;
+}
+
+/* Action Buttons */
+.actions-section {
+  text-align: center;
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.back-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.back-btn:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(108, 117, 125, 0.4);
+}
+
+.back-btn:active {
+  transform: translateY(0);
+}
+
+.refresh-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.refresh-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.refresh-btn:active {
+  transform: translateY(0);
+}
+
+.retry-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.retry-btn:hover {
+  background: #764ba2;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .gamification-container {
+    padding: 10px;
+  }
+
+  .gamification-section {
+    padding: 15px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 15px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+  }
+
+  .section-title {
+    font-size: 18px;
+    margin-bottom: 15px;
+  }
+
+  .leaderboard-table {
+    font-size: 12px;
+  }
+
+  .leaderboard-table th,
+  .leaderboard-table td {
+    padding: 8px;
+  }
+}

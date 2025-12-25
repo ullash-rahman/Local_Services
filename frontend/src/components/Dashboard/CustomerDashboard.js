@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { dashboardService } from '../../services/dashboardService';
+import { reviewService } from '../../services/reviewService';
 import CreateServiceRequest from '../ServiceRequest/CreateServiceRequest';
 import ServiceRequestList from '../ServiceRequest/ServiceRequestList';
 import ChatHeader from '../Chat/ChatHeader';
 import NotificationCenter from '../Notifications/NotificationCenter';
+import ComplaintSubmission from '../Complaints/ComplaintSubmission';
+import ComplaintList from '../Complaints/ComplaintList';
 import './Dashboard.css';
 
 const CustomerDashboard = () => {
@@ -15,6 +18,8 @@ const CustomerDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [showCreateRequest, setShowCreateRequest] = useState(false);
     const [selectedChatConversation, setSelectedChatConversation] = useState(null);
+    const [showComplaintSubmission, setShowComplaintSubmission] = useState(false);
+    const [complaintView, setComplaintView] = useState(null); // 'my-complaints' or 'against-me'
 
     useEffect(() => {
         // Check authentication
@@ -31,6 +36,28 @@ const CustomerDashboard = () => {
 
         setUser(currentUser);
         loadDashboardData();
+
+        // Initialize Socket.io for real-time review notifications
+        // Requirements: 2.5 (provider reply notifications)
+        reviewService.initializeSocket();
+        
+        // Subscribe to review reply notifications and content moderation notifications
+        const unsubscribe = reviewService.subscribeToReviewNotifications({
+            onReviewReply: (data) => {
+                console.log('Provider replied to your review:', data);
+                // Could show a toast notification here
+            },
+            onContentModerated: (data) => {
+                console.log('Your content was moderated:', data);
+                // Could show a toast notification here
+            }
+        });
+
+        // Cleanup on unmount
+        return () => {
+            unsubscribe();
+            reviewService.disconnectSocket();
+        };
     }, [navigate]);
 
     const loadDashboardData = async () => {
@@ -123,9 +150,96 @@ const CustomerDashboard = () => {
                         </div>
                     )}
 
-                    {!showCreateRequest && (
+                    {!showCreateRequest && !showComplaintSubmission && complaintView === null && (
                         <div style={{ marginBottom: '30px' }}>
                             <ServiceRequestList userRole="Customer" />
+                        </div>
+                    )}
+
+                    {/* Complaints Section */}
+                    {!showCreateRequest && (
+                        <div style={{ marginBottom: '30px' }}>
+                            <div style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center',
+                                marginBottom: '20px'
+                            }}>
+                                <h2 style={{ margin: 0 }}>Complaints</h2>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    {!showComplaintSubmission && (
+                                        <button
+                                            onClick={() => setShowComplaintSubmission(true)}
+                                            className="btn-create-request"
+                                            style={{
+                                                padding: '10px 20px',
+                                                background: 'linear-gradient(135deg, #5a9fd4 0%, #4a8bc2 100%)',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                fontSize: '14px',
+                                                fontWeight: '500'
+                                            }}
+                                        >
+                                            Submit Complaint
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => {
+                                            setComplaintView(complaintView === 'my-complaints' ? null : 'my-complaints');
+                                            setShowComplaintSubmission(false);
+                                        }}
+                                        style={{
+                                            padding: '10px 20px',
+                                            background: complaintView === 'my-complaints' ? '#4a8bc2' : '#e0e0e0',
+                                            color: complaintView === 'my-complaints' ? 'white' : '#333',
+                                            border: 'none',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            fontSize: '14px',
+                                            fontWeight: '500'
+                                        }}
+                                    >
+                                        My Complaints
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setComplaintView(complaintView === 'against-me' ? null : 'against-me');
+                                            setShowComplaintSubmission(false);
+                                        }}
+                                        style={{
+                                            padding: '10px 20px',
+                                            background: complaintView === 'against-me' ? '#4a8bc2' : '#e0e0e0',
+                                            color: complaintView === 'against-me' ? 'white' : '#333',
+                                            border: 'none',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            fontSize: '14px',
+                                            fontWeight: '500'
+                                        }}
+                                    >
+                                        Complaints Against Me
+                                    </button>
+                                </div>
+                            </div>
+
+                            {showComplaintSubmission && (
+                                <ComplaintSubmission
+                                    onSuccess={() => {
+                                        setShowComplaintSubmission(false);
+                                    }}
+                                    onCancel={() => setShowComplaintSubmission(false)}
+                                />
+                            )}
+
+                            {complaintView === 'my-complaints' && (
+                                <ComplaintList viewType="my-complaints" />
+                            )}
+
+                            {complaintView === 'against-me' && (
+                                <ComplaintList viewType="against-me" />
+                            )}
                         </div>
                     )}
 

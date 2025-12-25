@@ -11,6 +11,11 @@ const Chat = require('./models/Chat');
 const bundleRoutes = require('./routes/bundleRoutes');
 const serviceRequestRoutes = require('./routes/serviceRequestRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const complaintRoutes = require('./routes/complaintRoutes');
+const gamificationRoutes = require('./routes/gamificationRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -31,7 +36,11 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/bundles', bundleRoutes);
 app.use('/api/service-requests', serviceRequestRoutes);
 app.use('/api/notifications', notificationRoutes);
-
+app.use('/api/complaints', complaintRoutes);
+app.use('/api/gamification', gamificationRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -46,17 +55,16 @@ app.get('/api/health', (req, res) => {
 app.use((req, res) => {
     res.status(404).json({
         success: false,
-        message: 'Route not found'
+        message: `Route not found: ${req.method} ${req.path}`
     });
 });
 
-// Error handler
+// Global error handler
 app.use((err, req, res, next) => {
-    console.error('Error:', err);
-    res.status(500).json({
+    console.error('Server error:', err.message);
+    res.status(err.statusCode || 500).json({
         success: false,
-        message: 'Internal server error',
-        error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+        message: err.message || 'Internal server error'
     });
 });
 
@@ -128,8 +136,7 @@ io.on('connection', (socket) => {
             const User = require('./models/User');
             const sender = await User.findById(senderID);
 
-            // Get receiver info and request for notification
-            const receiver = await User.findById(receiverID);
+            // Get request for notification
             const ServiceRequest = require('./models/ServiceRequest');
             const request = await ServiceRequest.findById(requestID);
 
@@ -151,7 +158,6 @@ io.on('connection', (socket) => {
                 });
             } catch (notifError) {
                 console.error('Error creating message notification:', notifError);
-                // Don't fail the message send if notification fails
             }
 
             // Emit to all users in the request room
@@ -167,8 +173,6 @@ io.on('connection', (socket) => {
             };
 
             io.to(`request_${requestID}`).emit('new_message', messageData);
-
-            // Also emit to receiver if they're not in the room
             io.to(`user_${receiverID}`).emit('new_message', messageData);
         } catch (error) {
             console.error('Error handling message:', error);
@@ -209,4 +213,3 @@ server.listen(PORT, () => {
 global.io = io;
 
 module.exports = { app, server, io };
-
