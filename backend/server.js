@@ -17,6 +17,7 @@ const gamificationRoutes = require('./routes/gamificationRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const manualBookingRoutes = require('./routes/manualBookingRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -31,6 +32,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/chat', chatRoutes);
@@ -38,15 +40,13 @@ app.use('/api/bundles', bundleRoutes);
 app.use('/api/service-requests', serviceRequestRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/complaints', complaintRoutes);
-<<<<<<< HEAD
 
-=======
+// Additional routes from remote branch
 app.use('/api/gamification', gamificationRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/reports', reportRoutes);
->>>>>>> b77267040d5438e38ed376b313c1c6d4afea9923
-
+app.use('/api/manual-booking', manualBookingRoutes);
 // Health check route
 app.get('/api/health', (req, res) => {
     res.status(200).json({
