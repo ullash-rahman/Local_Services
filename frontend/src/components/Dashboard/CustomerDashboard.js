@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { dashboardService } from '../../services/dashboardService';
+import { reviewService } from '../../services/reviewService';
 import CreateServiceRequest from '../ServiceRequest/CreateServiceRequest';
 import ServiceRequestList from '../ServiceRequest/ServiceRequestList';
 import ChatHeader from '../Chat/ChatHeader';
@@ -35,6 +36,28 @@ const CustomerDashboard = () => {
 
         setUser(currentUser);
         loadDashboardData();
+
+        // Initialize Socket.io for real-time review notifications
+        // Requirements: 2.5 (provider reply notifications)
+        reviewService.initializeSocket();
+        
+        // Subscribe to review reply notifications and content moderation notifications
+        const unsubscribe = reviewService.subscribeToReviewNotifications({
+            onReviewReply: (data) => {
+                console.log('Provider replied to your review:', data);
+                // Could show a toast notification here
+            },
+            onContentModerated: (data) => {
+                console.log('Your content was moderated:', data);
+                // Could show a toast notification here
+            }
+        });
+
+        // Cleanup on unmount
+        return () => {
+            unsubscribe();
+            reviewService.disconnectSocket();
+        };
     }, [navigate]);
 
     const loadDashboardData = async () => {
