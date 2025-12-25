@@ -200,6 +200,58 @@ class ServiceRequest {
         const [result] = await pool.execute(query, [requestID]);
         return result.affectedRows > 0;
     }
+
+    // Accept manual booking (Provider only) - providerID is already set, just update status
+    static async acceptManualBooking(requestID, providerID) {
+        const query = `
+            UPDATE ServiceRequest 
+            SET status = 'Accepted'
+            WHERE requestID = ? AND providerID = ? AND status = 'Pending'
+        `;
+        const [result] = await pool.execute(query, [requestID, providerID]);
+        return result.affectedRows > 0;
+    }
+
+    // Reject manual booking (Provider only) - providerID is already set, just update status
+    static async rejectManualBooking(requestID, providerID) {
+        const query = `
+            UPDATE ServiceRequest 
+            SET status = 'Rejected'
+            WHERE requestID = ? AND providerID = ? AND status = 'Pending'
+        `;
+        const [result] = await pool.execute(query, [requestID, providerID]);
+        return result.affectedRows > 0;
+    }
+
+    // Update service request with providerID (for manual bookings)
+    static async updateWithProvider(requestID, updateData) {
+        const { providerID, status, priorityLevel } = updateData;
+        
+        const updates = [];
+        const params = [];
+        
+        if (providerID !== undefined) {
+            updates.push('providerID = ?');
+            params.push(providerID);
+        }
+        if (status !== undefined) {
+            updates.push('status = ?');
+            params.push(status);
+        }
+        if (priorityLevel !== undefined) {
+            updates.push('priorityLevel = ?');
+            params.push(priorityLevel);
+        }
+        
+        if (updates.length === 0) {
+            return await this.findById(requestID);
+        }
+        
+        params.push(requestID);
+        const query = `UPDATE ServiceRequest SET ${updates.join(', ')} WHERE requestID = ?`;
+        await pool.execute(query, params);
+        return await this.findById(requestID);
+    }
 }
 
 module.exports = ServiceRequest;
