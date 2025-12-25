@@ -16,6 +16,7 @@ const gamificationRoutes = require('./routes/gamificationRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const manualBookingRoutes = require('./routes/manualBookingRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -41,6 +42,7 @@ app.use('/api/gamification', gamificationRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/manual-booking', manualBookingRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
