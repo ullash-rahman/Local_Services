@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { dashboardService } from '../../services/dashboardService';
+import { reviewService } from '../../services/reviewService';
 import ServiceRequestList from '../ServiceRequest/ServiceRequestList';
+import ReviewsList from '../Reviews/ReviewsList';
 import ChatHeader from '../Chat/ChatHeader';
 import NotificationCenter from '../Notifications/NotificationCenter';
 import ComplaintSubmission from '../Complaints/ComplaintSubmission';
@@ -17,6 +19,8 @@ const ProviderDashboard = () => {
     const [selectedChatConversation, setSelectedChatConversation] = useState(null);
     const [showComplaintSubmission, setShowComplaintSubmission] = useState(false);
     const [complaintView, setComplaintView] = useState(null); // 'my-complaints' or 'against-me'
+    const [complaintView, setComplaintView] = useState(null);
+    const [refreshingAnalytics, setRefreshingAnalytics] = useState(false);
 
     useEffect(() => {
         // Check authentication
@@ -33,6 +37,20 @@ const ProviderDashboard = () => {
 
         setUser(currentUser);
         loadDashboardData();
+
+        // Initialize Socket.io for real-time review notifications
+        reviewService.initializeSocket();
+        
+        // Subscribe to new review notifications
+        const unsubscribe = reviewService.onNewReview((data) => {
+            console.log('New review received:', data);
+            loadDashboardData();
+        });
+
+        return () => {
+            unsubscribe();
+            reviewService.disconnectSocket();
+        };
     }, [navigate]);
 
     const loadDashboardData = async () => {
@@ -48,9 +66,38 @@ const ProviderDashboard = () => {
         }
     };
 
+    const handleRefreshAnalytics = async () => {
+        if (!user?.userID || refreshingAnalytics) return;
+        
+        setRefreshingAnalytics(true);
+        try {
+            await reviewService.refreshAnalytics(user.userID);
+            await loadDashboardData();
+        } catch (error) {
+            console.error('Error refreshing analytics:', error);
+        } finally {
+            setRefreshingAnalytics(false);
+        }
+    };
+
     const handleLogout = async () => {
         await authService.logout();
         navigate('/login');
+    };
+
+    const renderStarRating = (rating) => {
+        const numRating = parseFloat(rating) || 0;
+        const fullStars = Math.floor(numRating);
+        const hasHalfStar = numRating % 1 >= 0.5;
+        const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+        
+        return (
+            <span className="star-rating">
+                {'★'.repeat(fullStars)}
+                {hasHalfStar && '½'}
+                {'☆'.repeat(emptyStars)}
+            </span>
+        );
     };
 
     if (loading) {
@@ -76,17 +123,22 @@ const ProviderDashboard = () => {
             <main className="dashboard-main">
                 <div className="dashboard-content">
                     <div className="welcome-section">
-                        {/* Navigation Links */}
-                      <div className="dashboard-nav">
-                        <Link to="/dashboard/provider" className="nav-link">
-                            Dashboard
-                        </Link>
-                        <Link to="/dashboard/provider/servicebundle" className="nav-link">
-                            Service Bundles
-                        </Link>
-                      </div>
+                        <div className="dashboard-nav">
+                            <Link to="/dashboard/provider" className="nav-link">
+                                Dashboard
+                            </Link>
+                            <Link to="/dashboard/provider/servicebundle" className="nav-link">
+                                Service Bundles
+                            </Link>
+                            <Link to="/dashboard/provider/analytics" className="nav-link">
+                                Analytics
+                            </Link>
+                            <Link to="/gamification" className="nav-link">
+                                Gamification
+                            </Link>
+                        </div>
                         <h2>Welcome to Your Dashboard</h2>
-                        <p>This is your provider dashboard. Features will be added here.</p>
+                        <p>Manage your services and track your performance.</p>
                     </div>
 
                     {dashboardData && (
@@ -189,6 +241,7 @@ const ProviderDashboard = () => {
                                 onSuccess={() => {
                                     setShowComplaintSubmission(false);
                                 }}
+                                onSuccess={() => setShowComplaintSubmission(false)}
                                 onCancel={() => setShowComplaintSubmission(false)}
                             />
                         )}
@@ -201,6 +254,129 @@ const ProviderDashboard = () => {
                             <ComplaintList viewType="against-me" />
                         )}
                     </div>
+
+                    {/* Review Analytics Section */}
+                    {dashboardData?.reviewAnalytics && (
+                        <div className="review-analytics-section">
+                            <div className="section-header">
+                                <h3>Review Analytics</h3>
+                                <button 
+                                    className="btn-refresh-analytics"
+                                    onClick={handleRefreshAnalytics}
+                                    disabled={refreshingAnalytics}
+                                >
+                                    {refreshingAnalytics ? 'Refreshing...' : 'Refresh'}
+                                </button>
+                            </div>
+                            
+                            <div className="analytics-overview">
+                                <div className="analytics-card rating-card">
+                                    <h4>Average Rating</h4>
+                                    <div className="rating-display">
+                                        <span className="rating-value">
+                                            {reviewService.formatRating(dashboardData.reviewAnalytics.averageRating)}
+                                        </span>
+                                        {renderStarRating(dashboardData.reviewAnalytics.averageRating)}
+                                    </div>
+                                </div>
+                                
+                                <div className="analytics-card counts-card">
+                                    <h4>Review Counts</h4>
+                                    <div className="counts-grid">
+                                        <div className="count-item">
+                                            <span className="count-value">
+                                                {dashboardData.reviewAnalytics.reviewCounts?.last30Days || 0}
+                                            </span>
+                                            <span className="count-label">Last 30 Days</span>
+                                        </div>
+                                        <div className="count-item">
+                                            <span className="count-value">
+                                                {dashboardData.reviewAnalytics.reviewCounts?.last6Months || 0}
+                                            </span>
+                                            <span className="count-label">Last 6 Months</span>
+                                        </div>
+                                        <div className="count-item">
+                                            <span className="count-value">
+                                                {dashboardData.reviewAnalytics.reviewCounts?.allTime || 0}
+                                            </span>
+                                            <span className="count-label">All Time</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {dashboardData.reviewAnalytics.satisfaction?.eligible && (
+                                    <div className="analytics-card satisfaction-card">
+                                        <h4>Customer Satisfaction</h4>
+                                        <div className="satisfaction-display">
+                                            <span className="satisfaction-value">
+                                                {dashboardData.reviewAnalytics.satisfaction.satisfactionPercentage}%
+                                            </span>
+                                            <span className="satisfaction-label">4+ Star Reviews</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {dashboardData.reviewAnalytics.ratingDistribution && (
+                                <div className="rating-distribution">
+                                    <h4>Rating Distribution</h4>
+                                    <div className="distribution-bars">
+                                        {[5, 4, 3, 2, 1].map(rating => {
+                                            const count = dashboardData.reviewAnalytics.ratingDistribution[rating] || 0;
+                                            const total = Object.values(dashboardData.reviewAnalytics.ratingDistribution)
+                                                .reduce((sum, c) => sum + c, 0);
+                                            const percentage = total > 0 ? (count / total) * 100 : 0;
+                                            
+                                            return (
+                                                <div key={rating} className="distribution-row">
+                                                    <span className="rating-label">{rating} ★</span>
+                                                    <div className="bar-container">
+                                                        <div 
+                                                            className="bar-fill" 
+                                                            style={{ width: `${percentage}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="count-label">{count}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {dashboardData.reviewAnalytics.trends && dashboardData.reviewAnalytics.trends.length > 0 && (
+                                <div className="rating-trends">
+                                    <h4>Rating Trends (Last 6 Months)</h4>
+                                    <div className="trends-chart">
+                                        {dashboardData.reviewAnalytics.trends.map((trend, index) => (
+                                            <div key={index} className="trend-item">
+                                                <div className="trend-bar-container">
+                                                    <div 
+                                                        className="trend-bar" 
+                                                        style={{ height: `${(parseFloat(trend.averageRating) / 5) * 100}%` }}
+                                                    >
+                                                        <span className="trend-value">{trend.averageRating}</span>
+                                                    </div>
+                                                </div>
+                                                <span className="trend-label">
+                                                    {new Date(trend.month + '-01').toLocaleDateString('en-US', { 
+                                                        month: 'short' 
+                                                    })}
+                                                </span>
+                                                <span className="trend-count">{trend.reviewCount} reviews</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {user?.userID && (
+                        <div style={{ marginTop: '30px' }}>
+                            <ReviewsList providerID={user.userID} showReplyForm={true} />
+                        </div>
+                    )}
                 </div>
             </main>
         </div>
