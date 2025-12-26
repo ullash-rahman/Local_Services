@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { manualBookingService } from '../../services/manualBookingService';
+import CustomerBookingCalendar from './CustomerBookingCalendar';
 import './ManualBooking.css';
 
 const ManualBooking = () => {
@@ -275,7 +276,18 @@ const ManualBooking = () => {
                                     </option>
                                 ))}
                             </select>
+                            <span className="form-help">Select a provider to view their availability calendar</span>
                         </div>
+
+                        {formData.providerID && (
+                            <div className="provider-availability-section">
+                                <h4>Provider Availability Calendar</h4>
+                                <CustomerBookingCalendar
+                                    providerID={formData.providerID}
+                                    providerName={providers.find(p => p.userID === formData.providerID)?.name}
+                                />
+                            </div>
+                        )}
 
                         <div className="form-group">
                             <label htmlFor="category">Service Category *</label>

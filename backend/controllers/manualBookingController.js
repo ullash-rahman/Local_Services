@@ -1,6 +1,7 @@
 const Booking = require('../models/Booking');
 const ServiceRequest = require('../models/ServiceRequest');
 const User = require('../models/User');
+const Availability = require('../models/Availability');
 
 // Create a manual booking for a preferred provider
 const createManualBooking = async (req, res) => {
@@ -66,6 +67,29 @@ const createManualBooking = async (req, res) => {
                 success: false,
                 message: 'Provider is not verified'
             });
+        }
+
+        // Check provider availability if timeSlot is provided
+        if (scheduledTime) {
+            // Convert scheduledTime to timeSlot format (e.g., "09:00" -> "09:00-10:00" or use as-is)
+            const timeSlot = scheduledTime.length === 5 ? scheduledTime : scheduledTime;
+            const isAvailable = await Availability.isAvailable(providerID, scheduledDate, timeSlot);
+            
+            if (!isAvailable) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Provider is not available at the selected date and time. Please check provider availability calendar.'
+                });
+            }
+        } else {
+            // If no specific time, check if provider has any availability on that date
+            const dateAvailability = await Availability.getByProviderAndDate(providerID, scheduledDate);
+            if (dateAvailability.length === 0 || !dateAvailability.some(a => a.available)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Provider is not available on the selected date. Please check provider availability calendar.'
+                });
+            }
         }
 
         // Create service request first

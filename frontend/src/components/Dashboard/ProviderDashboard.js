@@ -132,6 +132,12 @@ const ProviderDashboard = () => {
                             <Link to="/dashboard/provider/analytics" className="nav-link">
                                 Analytics
                             </Link>
+                            <Link to="/dashboard/provider/manual-bookings" className="nav-link">
+                                Manual Bookings
+                            </Link>
+                            <Link to="/dashboard/provider/availability" className="nav-link">
+                                Availability Calendar
+                            </Link>
                             <Link to="/gamification" className="nav-link">
                                 Gamification
                             </Link>

@@ -108,6 +108,9 @@ const CustomerDashboard = () => {
                         <Link to="/dashboard/customer/bundles" className="nav-link">
                             Browse Bundles
                         </Link>
+                        <Link to="/dashboard/customer/manual-bookings" className="nav-link">
+                            Manual Bookings
+                        </Link>
                     </div>
                     <div className="welcome-section">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>

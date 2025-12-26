@@ -22,7 +22,7 @@ export const reviewService = {
             return reviewSocket;
         }
 
-        const socketUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
+        const socketUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
         
         reviewSocket = io(socketUrl, {
             auth: { token },

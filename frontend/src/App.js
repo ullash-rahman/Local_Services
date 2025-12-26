@@ -9,6 +9,9 @@ import BundleManagerPage from './components/Bundle/BundleManagerPage';
 import BundleListPage from './components/Bundle/BundleListPage';
 import Gamification from './components/Gamification/Gamification';
 import AnalyticsDashboard from './components/Analytics/AnalyticsDashboard';
+import ProviderManualBookingsPage from './components/Booking/ProviderManualBookingsPage';
+import ManualBookingPage from './components/Booking/ManualBookingPage';
+import ProviderAvailabilityCalendarPage from './components/Booking/ProviderAvailabilityCalendarPage';
 import './App.css';
 
 // Protected Route Component
@@ -70,6 +73,14 @@ function App() {
                         }
                     />
                     <Route
+                        path="/dashboard/customer/manual-bookings"
+                        element={
+                            <ProtectedRoute allowedRoles={['Customer']}>
+                                <ManualBookingPage />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
                         path="/gamification"
                         element={
                             <ProtectedRoute>
@@ -82,6 +93,22 @@ function App() {
                         element={
                             <ProtectedRoute allowedRoles={['Provider']}>
                                 <AnalyticsDashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/dashboard/provider/manual-bookings"
+                        element={
+                            <ProtectedRoute allowedRoles={['Provider']}>
+                                <ProviderManualBookingsPage />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/dashboard/provider/availability"
+                        element={
+                            <ProtectedRoute allowedRoles={['Provider']}>
+                                <ProviderAvailabilityCalendarPage />
                             </ProtectedRoute>
                         }
                     />
