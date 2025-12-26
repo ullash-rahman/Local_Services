@@ -4,9 +4,15 @@ export const manualBookingService = {
     // Get list of available providers
     getProviders: async () => {
         try {
+            console.log('API: Calling /manual-booking/providers');
             const response = await api.get('/manual-booking/providers');
+            console.log('API: Response received:', response);
+            console.log('API: Response data:', response.data);
             return response.data;
         } catch (error) {
+            console.error('API: Error fetching providers:', error);
+            console.error('API: Error response:', error.response);
+            console.error('API: Error data:', error.response?.data);
             throw error.response?.data || { message: 'Failed to fetch providers' };
         }
     },

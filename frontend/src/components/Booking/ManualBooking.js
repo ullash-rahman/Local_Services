@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { manualBookingService } from '../../services/manualBookingService';
 import CustomerBookingCalendar from './CustomerBookingCalendar';
+import { SERVICE_CATEGORIES, CATEGORY_COLORS } from '../../utils/categories';
 import './ManualBooking.css';
 
 const ManualBooking = () => {
     const [providers, setProviders] = useState([]);
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadingProviders, setLoadingProviders] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [selectedBooking, setSelectedBooking] = useState(null);
     const [cancellingBooking, setCancellingBooking] = useState(null);
+    const [categoryFilter, setCategoryFilter] = useState('all');
 
     const [formData, setFormData] = useState({
         providerID: '',
@@ -27,19 +30,8 @@ const ManualBooking = () => {
         cancellationReason: ''
     });
 
-    // Common service categories
-    const categories = [
-        'Plumbing',
-        'Electrical',
-        'Cleaning',
-        'Carpentry',
-        'Painting',
-        'Gardening',
-        'Appliance Repair',
-        'Moving',
-        'Delivery',
-        'Other'
-    ];
+    // Use shared categories
+    const categories = SERVICE_CATEGORIES;
 
     useEffect(() => {
         loadProviders();
@@ -48,12 +40,44 @@ const ManualBooking = () => {
 
     const loadProviders = async () => {
         try {
+            setLoadingProviders(true);
+            setError(null); // Clear any previous errors
+            console.log('=== Loading providers ===');
             const response = await manualBookingService.getProviders();
-            if (response.success) {
-                setProviders(response.data.providers || []);
+            console.log('=== Providers response ===', response);
+            console.log('Response success:', response?.success);
+            console.log('Response data:', response?.data);
+            console.log('Response providers array:', response?.data?.providers);
+            
+            if (response && response.success) {
+                const providersList = response.data?.providers || [];
+                console.log('=== Providers loaded ===', providersList.length, 'providers');
+                console.log('Providers list:', providersList);
+                setProviders(providersList);
+                if (providersList.length === 0) {
+                    console.warn('No providers found in database');
+                    setError('No providers are available in the system. Please contact support.');
+                } else {
+                    // Clear error if providers are loaded successfully
+                    setError(null);
+                }
+            } else {
+                const errorMsg = response?.message || 'Failed to load providers';
+                console.error('Response indicates failure:', errorMsg);
+                setError(errorMsg);
             }
         } catch (err) {
-            console.error('Error loading providers:', err);
+            console.error('=== Error loading providers ===', err);
+            console.error('Error details:', {
+                message: err.message,
+                response: err.response,
+                responseData: err.response?.data,
+                stack: err.stack
+            });
+            const errorMessage = err.message || err.response?.data?.message || err.response?.data?.error || 'Failed to load providers';
+            setError(errorMessage);
+        } finally {
+            setLoadingProviders(false);
         }
     };
 
@@ -261,22 +285,32 @@ const ManualBooking = () => {
                     <form onSubmit={handleSubmit}>
                         <div className="form-group">
                             <label htmlFor="providerID">Select Preferred Provider *</label>
-                            <select
-                                id="providerID"
-                                name="providerID"
-                                className="form-select"
-                                value={formData.providerID}
-                                onChange={handleInputChange}
-                                required
-                            >
-                                <option value="">-- Select Provider --</option>
-                                {providers.map(provider => (
-                                    <option key={provider.userID} value={provider.userID}>
-                                        {provider.name} {provider.verified && '✓'}
-                                    </option>
-                                ))}
-                            </select>
-                            <span className="form-help">Select a provider to view their availability calendar</span>
+                            {loadingProviders ? (
+                                <div className="loading-message">Loading providers...</div>
+                            ) : providers.length === 0 ? (
+                                <div className="error-message" style={{ padding: '10px', marginTop: '5px' }}>
+                                    No providers are available. Please contact support.
+                                </div>
+                            ) : (
+                                <>
+                                    <select
+                                        id="providerID"
+                                        name="providerID"
+                                        className="form-select"
+                                        value={formData.providerID}
+                                        onChange={handleInputChange}
+                                        required
+                                    >
+                                        <option value="">-- Select Provider --</option>
+                                        {providers.map(provider => (
+                                            <option key={provider.userID} value={provider.userID}>
+                                                {provider.name} {provider.verified ? '✓ (Verified)' : ' (Unverified)'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <span className="form-help">Select a provider to view their availability calendar. Verified providers are marked with ✓.</span>
+                                </>
+                            )}
                         </div>
 
                         {formData.providerID && (
@@ -397,14 +431,62 @@ const ManualBooking = () => {
             )}
 
             <div className="manual-booking-list">
-                <h3>My Manual Bookings</h3>
+                <div className="bookings-header">
+                    <h3>My Manual Bookings</h3>
+                    <div className="category-filter-section">
+                        <label>Filter by Category:</label>
+                        <select
+                            value={categoryFilter}
+                            onChange={(e) => setCategoryFilter(e.target.value)}
+                            className="category-filter-select"
+                        >
+                            <option value="all">All Categories</option>
+                            {categories.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                {/* Category Filter Chips */}
+                <div className="category-filters">
+                    <div className="category-chips">
+                        <button
+                            className={`category-chip ${categoryFilter === 'all' ? 'active' : ''}`}
+                            onClick={() => setCategoryFilter('all')}
+                        >
+                            All
+                        </button>
+                        {categories.map(category => {
+                            const colors = CATEGORY_COLORS[category] || CATEGORY_COLORS['Other'];
+                            return (
+                                <button
+                                    key={category}
+                                    className={`category-chip ${categoryFilter === category ? 'active' : ''}`}
+                                    onClick={() => setCategoryFilter(category)}
+                                    style={{
+                                        backgroundColor: categoryFilter === category ? colors.bg : '#f5f5f5',
+                                        color: categoryFilter === category ? colors.text : '#666',
+                                        borderColor: categoryFilter === category ? colors.text : '#ddd'
+                                    }}
+                                >
+                                    <span className="category-icon">{colors.icon}</span>
+                                    {category}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
                 {bookings.length === 0 ? (
                     <div className="empty-state">
                         <p>No manual bookings found. Create your first booking above!</p>
                     </div>
                 ) : (
                     <div className="bookings-grid">
-                        {bookings.map(booking => (
+                        {bookings
+                            .filter(booking => categoryFilter === 'all' || booking.category === categoryFilter)
+                            .map(booking => (
                             <div key={booking.bookingID} className="booking-card">
                                 <div className="booking-header">
                                     <h4>{booking.category}</h4>

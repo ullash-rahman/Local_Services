@@ -339,22 +339,48 @@ const cancelManualBooking = async (req, res) => {
 // Get list of providers (for selecting preferred provider)
 const getProviders = async (req, res) => {
     try {
+        console.log('=== getProviders called ===');
+        console.log('Request user:', req.user);
+        
         const pool = require('../config/database');
+        
+        // First, let's check if there are any users with Provider role at all
+        const checkQuery = `SELECT COUNT(*) as total FROM USER WHERE role = 'Provider'`;
+        const [checkRows] = await pool.execute(checkQuery);
+        console.log('Total Provider users in database:', checkRows[0]?.total);
+        
+        // Get all providers (verified and unverified)
         const query = `
             SELECT userID, name, email, phone, verified, createdAt
             FROM USER
-            WHERE role = 'Provider' AND verified = TRUE
-            ORDER BY name ASC
+            WHERE role = 'Provider'
+            ORDER BY verified DESC, name ASC
         `;
+        console.log('Executing query:', query);
         const [rows] = await pool.execute(query);
+        
+        console.log('=== getProviders Results ===');
+        console.log('Total providers found:', rows.length);
+        console.log('Verified providers:', rows.filter(p => p.verified).length);
+        console.log('Unverified providers:', rows.filter(p => !p.verified).length);
+        console.log('Provider details:', rows.map(p => ({ 
+            id: p.userID, 
+            name: p.name, 
+            email: p.email,
+            verified: p.verified 
+        })));
 
-        res.status(200).json({
+        const response = {
             success: true,
             message: 'Providers retrieved successfully',
             data: { providers: rows }
-        });
+        };
+        
+        console.log('Sending response:', JSON.stringify(response, null, 2));
+        res.status(200).json(response);
     } catch (error) {
-        console.error('Get providers error:', error);
+        console.error('=== Get providers error ===', error);
+        console.error('Error stack:', error.stack);
         res.status(500).json({
             success: false,
             message: 'Server error while retrieving providers',

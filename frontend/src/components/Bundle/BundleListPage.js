@@ -37,6 +37,9 @@ const BundleListPage = () => {
                         <Link to="/dashboard/customer/bundles" className="nav-link active">
                             Browse Bundles
                         </Link>
+                        <Link to="/dashboard/customer/manual-bookings" className="nav-link">
+                            Manual Bookings
+                        </Link>
                     </div>
 
                     <div className="bundles-section">

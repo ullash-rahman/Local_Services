@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { availabilityService } from '../../services/availabilityService';
 import { manualBookingService } from '../../services/manualBookingService';
+import { SERVICE_CATEGORIES } from '../../utils/categories';
 import './CustomerBookingCalendar.css';
 
 const CustomerBookingCalendar = ({ providerID, providerName }) => {
@@ -26,18 +27,8 @@ const CustomerBookingCalendar = ({ providerID, providerName }) => {
         '16:00-17:00', '17:00-18:00', '18:00-19:00', '19:00-20:00'
     ];
 
-    const categories = [
-        'Plumbing',
-        'Electrical',
-        'Cleaning',
-        'Carpentry',
-        'Painting',
-        'Gardening',
-        'Appliance Repair',
-        'Moving',
-        'Delivery',
-        'Other'
-    ];
+    // Use shared categories
+    const categories = SERVICE_CATEGORIES;
 
     useEffect(() => {
         if (providerID) {

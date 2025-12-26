@@ -120,17 +120,25 @@ const getMyServiceRequests = async (req, res) => {
         const userID = req.user.userID;
         const userRole = req.user.role;
         const status = req.query.status || null;
+        const category = req.query.category || null;
+
+        console.log('getMyServiceRequests - Query params:', { userID, userRole, status, category });
 
         let requests;
         if (userRole === 'Customer') {
-            requests = await ServiceRequest.getByCustomer(userID, status);
+            requests = await ServiceRequest.getByCustomer(userID, status, category);
         } else if (userRole === 'Provider') {
-            requests = await ServiceRequest.getByProvider(userID, status);
+            requests = await ServiceRequest.getByProvider(userID, status, category);
         } else {
             return res.status(403).json({
                 success: false,
                 message: 'Invalid role for this operation'
             });
+        }
+
+        console.log('getMyServiceRequests - Returning', requests.length, 'requests');
+        if (requests.length > 0) {
+            console.log('Sample request categories:', requests.slice(0, 3).map(r => r.category));
         }
 
         res.status(200).json({
