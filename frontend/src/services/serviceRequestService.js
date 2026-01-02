@@ -22,12 +22,18 @@ export const serviceRequestService = {
     },
 
     // Get all service requests for current user
-    getMyServiceRequests: async (status = null) => {
+    getMyServiceRequests: async (status = null, category = null) => {
         try {
-            const url = status 
-                ? `/service-requests?status=${encodeURIComponent(status)}`
+            const params = new URLSearchParams();
+            if (status) params.append('status', status);
+            if (category) params.append('category', category);
+            
+            const url = params.toString() 
+                ? `/service-requests?${params.toString()}`
                 : '/service-requests';
+            console.log('API call - getMyServiceRequests:', { status, category, url });
             const response = await api.get(url);
+            console.log('API response:', response.data);
             return response.data;
         } catch (error) {
             throw error.response?.data || { message: 'Failed to fetch service requests' };

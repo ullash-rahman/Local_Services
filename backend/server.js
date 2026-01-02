@@ -17,6 +17,8 @@ const reviewRoutes = require('./routes/reviewRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const earningsRoutes = require('./routes/earningsRoutes');
+const manualBookingRoutes = require('./routes/manualBookingRoutes');
+const availabilityRoutes = require('./routes/availabilityRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -43,6 +45,8 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/earnings', earningsRoutes);
+app.use('/api/manual-booking', manualBookingRoutes);
+app.use('/api/availability', availabilityRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

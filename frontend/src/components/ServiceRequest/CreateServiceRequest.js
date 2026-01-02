@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { serviceRequestService } from '../../services/serviceRequestService';
+import { SERVICE_CATEGORIES } from '../../utils/categories';
 import './CreateServiceRequest.css';
 
 const CreateServiceRequest = ({ onSuccess, onCancel }) => {
@@ -12,19 +13,8 @@ const CreateServiceRequest = ({ onSuccess, onCancel }) => {
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
 
-    // Common service categories
-    const categories = [
-        'Plumbing',
-        'Electrical',
-        'Cleaning',
-        'Carpentry',
-        'Painting',
-        'Gardening',
-        'Appliance Repair',
-        'Moving',
-        'Delivery',
-        'Other'
-    ];
+    // Use shared categories
+    const categories = SERVICE_CATEGORIES;
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;

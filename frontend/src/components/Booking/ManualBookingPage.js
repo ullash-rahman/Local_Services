@@ -1,10 +1,10 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
-import BundleList from './BundleList';
+import ManualBooking from './ManualBooking';
 import '../Dashboard/Dashboard.css';
 
-const BundleListPage = () => {
+const ManualBookingPage = () => {
     const navigate = useNavigate();
     const user = authService.getCurrentUser();
 
@@ -34,24 +34,20 @@ const BundleListPage = () => {
                         <Link to="/dashboard/customer" className="nav-link">
                             Dashboard
                         </Link>
-                        <Link to="/dashboard/customer/bundles" className="nav-link active">
+                        <Link to="/dashboard/customer/bundles" className="nav-link">
                             Browse Bundles
                         </Link>
-                        <Link to="/dashboard/customer/manual-bookings" className="nav-link">
+                        <Link to="/dashboard/customer/manual-bookings" className="nav-link active">
                             Manual Bookings
                         </Link>
                     </div>
 
-                    <div className="bundles-section">
-                        <h2>Browse Service Bundles</h2>
-                        <p>Explore service packages offered by providers</p>
-                        <BundleList />
-                    </div>
+                    <ManualBooking />
                 </div>
             </main>
         </div>
     );
 };
 
-export default BundleListPage;
+export default ManualBookingPage;
 

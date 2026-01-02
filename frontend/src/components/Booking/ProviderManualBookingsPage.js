@@ -1,10 +1,10 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
-import BundleList from './BundleList';
+import ProviderManualBookings from './ProviderManualBookings';
 import '../Dashboard/Dashboard.css';
 
-const BundleListPage = () => {
+const ProviderManualBookingsPage = () => {
     const navigate = useNavigate();
     const user = authService.getCurrentUser();
 
@@ -17,7 +17,7 @@ const BundleListPage = () => {
         <div className="dashboard-container">
             <header className="dashboard-header">
                 <div className="header-content">
-                    <h1>Customer Dashboard</h1>
+                    <h1>Provider Dashboard</h1>
                     <div className="header-actions">
                         <span className="user-name">Welcome, {user?.name}</span>
                         <button onClick={handleLogout} className="btn-logout">
@@ -31,27 +31,29 @@ const BundleListPage = () => {
                 <div className="dashboard-content">
                     {/* Navigation Links */}
                     <div className="dashboard-nav">
-                        <Link to="/dashboard/customer" className="nav-link">
+                        <Link to="/dashboard/provider" className="nav-link">
                             Dashboard
                         </Link>
-                        <Link to="/dashboard/customer/bundles" className="nav-link active">
-                            Browse Bundles
+                        <Link to="/dashboard/provider/servicebundle" className="nav-link">
+                            Service Bundles
                         </Link>
-                        <Link to="/dashboard/customer/manual-bookings" className="nav-link">
+                        <Link to="/dashboard/provider/analytics" className="nav-link">
+                            Analytics
+                        </Link>
+                        <Link to="/dashboard/provider/manual-bookings" className="nav-link active">
                             Manual Bookings
+                        </Link>
+                        <Link to="/gamification" className="nav-link">
+                            Gamification
                         </Link>
                     </div>
 
-                    <div className="bundles-section">
-                        <h2>Browse Service Bundles</h2>
-                        <p>Explore service packages offered by providers</p>
-                        <BundleList />
-                    </div>
+                    <ProviderManualBookings />
                 </div>
             </main>
         </div>
     );
 };
 
-export default BundleListPage;
+export default ProviderManualBookingsPage;
 
