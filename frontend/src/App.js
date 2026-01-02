@@ -9,6 +9,7 @@ import BundleManagerPage from './components/Bundle/BundleManagerPage';
 import BundleListPage from './components/Bundle/BundleListPage';
 import Gamification from './components/Gamification/Gamification';
 import AnalyticsDashboard from './components/Analytics/AnalyticsDashboard';
+import EarningsDashboard from './components/Earnings/EarningsDashboard';
 import './App.css';
 
 // Protected Route Component
@@ -82,6 +83,14 @@ function App() {
                         element={
                             <ProtectedRoute allowedRoles={['Provider']}>
                                 <AnalyticsDashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/dashboard/provider/earnings"
+                        element={
+                            <ProtectedRoute allowedRoles={['Provider']}>
+                                <EarningsDashboard />
                             </ProtectedRoute>
                         }
                     />

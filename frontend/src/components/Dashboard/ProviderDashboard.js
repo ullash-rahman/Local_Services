@@ -129,6 +129,9 @@ const ProviderDashboard = () => {
                             <Link to="/dashboard/provider/servicebundle" className="nav-link">
                                 Service Bundles
                             </Link>
+                            <Link to="/dashboard/provider/earnings" className="nav-link">
+                                Earnings
+                            </Link>
                             <Link to="/dashboard/provider/analytics" className="nav-link">
                                 Analytics
                             </Link>
@@ -154,10 +157,11 @@ const ProviderDashboard = () => {
                                 <h3>Completed Jobs</h3>
                                 <p className="stat-value">{dashboardData.stats.completedJobs}</p>
                             </div>
-                            <div className="stat-card">
+                            <Link to="/dashboard/provider/earnings" className="stat-card stat-card-link">
                                 <h3>Total Earnings</h3>
                                 <p className="stat-value">${dashboardData.stats.totalEarnings}</p>
-                            </div>
+                                <span className="view-details">View Details →</span>
+                            </Link>
                         </div>
                     )}
 
