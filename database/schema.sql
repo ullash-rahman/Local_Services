@@ -403,5 +403,28 @@ CREATE TABLE IF NOT EXISTS MaintenanceReminder (
 );
 
 -- =====================================================
+-- EARNINGS DASHBOARD TABLES
+-- =====================================================
+
+-- EarningsGoal Table (Daily/Monthly Earnings Goals)
+CREATE TABLE IF NOT EXISTS EarningsGoal (
+    goalID INT PRIMARY KEY AUTO_INCREMENT,
+    providerID INT NOT NULL,
+    goalType ENUM('daily', 'monthly') NOT NULL,
+    targetAmount DECIMAL(10, 2) NOT NULL,
+    startDate DATE NOT NULL,
+    endDate DATE NOT NULL,
+    isActive BOOLEAN DEFAULT TRUE,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (providerID) REFERENCES USER(userID) ON DELETE CASCADE,
+    INDEX idx_provider (providerID),
+    INDEX idx_goal_type (goalType),
+    INDEX idx_active (isActive),
+    INDEX idx_start_date (startDate),
+    INDEX idx_end_date (endDate)
+);
+
+-- =====================================================
 -- END OF SCHEMA
 -- =====================================================
