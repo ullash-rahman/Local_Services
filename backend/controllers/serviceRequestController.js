@@ -1,4 +1,7 @@
 const ServiceRequest = require('../models/ServiceRequest');
+const Payment = require('../models/Payment');
+const Gamification = require('../models/Gamification');
+const IntegrationService = require('../services/IntegrationService');
 
 // Create a new service request (Customer only)
 const createServiceRequest = async (req, res) => {
@@ -324,6 +327,7 @@ const acceptServiceRequest = async (req, res) => {
         console.log('Accept service request called:', req.params);
         const providerID = req.user.userID;
         const { requestID } = req.params;
+        const { amount } = req.body; // Optional: provider can specify amount
 
         // Verify request exists and is pending
         const request = await ServiceRequest.findById(requestID);
@@ -356,6 +360,30 @@ const acceptServiceRequest = async (req, res) => {
                 success: false,
                 message: 'Failed to accept service request. It may have been accepted by another provider.'
             });
+        }
+
+        // Auto-create Payment record for this service request
+        let paymentCreated = null;
+        try {
+            // Default amount if not provided (can be updated later)
+            const paymentAmount = amount || 0;
+            
+            // Calculate due date (7 days from now)
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 7);
+            
+            const paymentID = await Payment.create({
+                requestID: parseInt(requestID),
+                amount: paymentAmount,
+                dueDate: dueDate,
+                status: 'Pending'
+            });
+            
+            paymentCreated = { paymentID, amount: paymentAmount, status: 'Pending', dueDate };
+            console.log('Payment auto-created for request:', requestID, 'Payment ID:', paymentID);
+        } catch (paymentError) {
+            console.error('Error auto-creating payment:', paymentError);
+            // Don't fail the accept if payment creation fails
         }
 
         // Get updated request
@@ -399,7 +427,10 @@ const acceptServiceRequest = async (req, res) => {
         res.status(200).json({
             success: true,
             message: 'Service request accepted successfully',
-            data: { request: updatedRequest }
+            data: { 
+                request: updatedRequest,
+                payment: paymentCreated
+            }
         });
     } catch (error) {
         console.error('Accept service request error:', error);
@@ -456,6 +487,106 @@ const rejectServiceRequest = async (req, res) => {
     }
 };
 
+// Complete service request (Provider only)
+const completeServiceRequest = async (req, res) => {
+    try {
+        const providerID = req.user.userID;
+        const { requestID } = req.params;
+
+        // Verify request exists
+        const request = await ServiceRequest.findById(requestID);
+        if (!request) {
+            return res.status(404).json({
+                success: false,
+                message: 'Service request not found'
+            });
+        }
+
+        // Verify provider owns this request
+        if (request.providerID !== providerID) {
+            return res.status(403).json({
+                success: false,
+                message: 'You do not have permission to complete this request'
+            });
+        }
+
+        // Only allow completion if status is Accepted or Ongoing
+        if (!['Accepted', 'Ongoing'].includes(request.status)) {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot complete service request with status: ${request.status}. Must be Accepted or Ongoing.`
+            });
+        }
+
+        // Update status to Completed
+        const completed = await ServiceRequest.updateStatus(requestID, 'Completed');
+
+        if (!completed) {
+            return res.status(400).json({
+                success: false,
+                message: 'Failed to complete service request'
+            });
+        }
+
+        // Trigger IntegrationService to handle cross-feature updates
+        // This ensures payment record is created if not exists and notifications are sent
+        let integrationResults = null;
+        try {
+            integrationResults = await IntegrationService.onServiceCompleted(parseInt(requestID));
+            console.log('Integration service completed:', integrationResults);
+        } catch (integrationError) {
+            console.error('Error in IntegrationService.onServiceCompleted:', integrationError);
+            // Don't fail the request if integration fails - the core operation succeeded
+        }
+
+        // Get updated request
+        const updatedRequest = await ServiceRequest.findById(requestID);
+
+        // Create notification for customer to leave a review (legacy - IntegrationService also handles this)
+        try {
+            const Notification = require('../models/Notification');
+            const User = require('../models/User');
+            const provider = await User.findById(providerID);
+            
+            if (provider) {
+                await Notification.create({
+                    userID: request.customerID,
+                    requestID: requestID,
+                    message: `${provider.name} has completed your ${request.category} service. Please leave a review!`,
+                    notificationType: 'service_completed'
+                });
+
+                // Emit notification via Socket.io
+                if (global.io) {
+                    global.io.to(`user_${request.customerID}`).emit('new_notification', {
+                        message: `Your ${request.category} service has been completed. Please leave a review!`,
+                        notificationType: 'service_completed',
+                        requestID: requestID
+                    });
+                }
+            }
+        } catch (notifError) {
+            console.error('Error creating completion notification:', notifError);
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Service request completed successfully',
+            data: { 
+                request: updatedRequest,
+                integration: integrationResults
+            }
+        });
+    } catch (error) {
+        console.error('Complete service request error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while completing service request',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
 module.exports = {
     createServiceRequest,
     getServiceRequestById,
@@ -465,6 +596,7 @@ module.exports = {
     deleteServiceRequest,
     getServiceRequestsByCategory,
     acceptServiceRequest,
-    rejectServiceRequest
+    rejectServiceRequest,
+    completeServiceRequest
 };
 

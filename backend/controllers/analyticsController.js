@@ -3,6 +3,8 @@ const PerformanceAnalytics = require('../services/PerformanceAnalytics');
 const CustomerAnalytics = require('../services/CustomerAnalytics');
 const BenchmarkingService = require('../services/BenchmarkingService');
 const RealTimeAnalytics = require('../services/RealTimeAnalytics');
+const Gamification = require('../models/Gamification');
+const EarningsService = require('../services/EarningsService');
 
 // Helper to validate provider access
 const validateProviderAccess = (req, providerID) => {
@@ -44,7 +46,8 @@ const getDashboard = async (req, res) => {
             revenueData,
             performanceData,
             customerData,
-            realTimeData
+            realTimeData,
+            gamificationData
         ] = await Promise.all([
             RevenueAnalytics.getDashboardData(validation.providerID, period).catch(err => {
                 console.error('Error fetching revenue data:', err);
@@ -61,8 +64,64 @@ const getDashboard = async (req, res) => {
             RealTimeAnalytics.getTodayMetrics(validation.providerID).catch(err => {
                 console.error('Error fetching real-time data:', err);
                 return null;
-            })
+            }),
+            // Fetch gamification data: points, rank, and recent badges
+            (async () => {
+                try {
+                    const [gamificationStats, rankingData] = await Promise.all([
+                        Gamification.getGamificationData(validation.providerID),
+                        Gamification.getMonthlyRanking(validation.providerID)
+                    ]);
+                    
+                    return {
+                        totalPoints: gamificationStats.totalPoints || 0,
+                        monthlyPoints: gamificationStats.monthlyPoints || 0,
+                        rank: rankingData.rank || 0,
+                        previousRank: rankingData.previousRank || 0,
+                        percentile: rankingData.percentile || 0,
+                        tier: gamificationStats.tier || 'Beginner',
+                        badges: gamificationStats.badgesEarned || [],
+                        recentBadges: (gamificationStats.badgesEarned || []).slice(-3) // Last 3 badges earned
+                    };
+                } catch (err) {
+                    console.error('Error fetching gamification data:', err);
+                    return null;
+                }
+            })()
         ]);
+
+        // Cross-validate revenue data consistency (Task 8.2)
+        let revenueConsistency = null;
+        if (revenueData) {
+            try {
+                // Get current date for earnings comparison
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = today.getMonth() + 1;
+                
+                // Get earnings from EarningsService for comparison
+                const earningsData = await EarningsService.getMonthlyEarnings(validation.providerID, year, month).catch(() => null);
+                
+                if (earningsData && revenueData.totalEarnings) {
+                    const paymentRevenue = revenueData.totalEarnings.currentPeriod?.totalEarnings || 0;
+                    const earningsTotal = earningsData.totalEarnings || 0;
+                    
+                    // Check if values are consistent (within tolerance for different query periods)
+                    const difference = Math.abs(paymentRevenue - earningsTotal);
+                    const isConsistent = difference < 0.01 || (paymentRevenue === 0 && earningsTotal === 0);
+                    
+                    revenueConsistency = {
+                        paymentServiceRevenue: paymentRevenue,
+                        earningsServiceRevenue: earningsTotal,
+                        isConsistent,
+                        difference: parseFloat(difference.toFixed(2)),
+                        note: 'Revenue data cross-validated between Payment and Earnings services'
+                    };
+                }
+            } catch (err) {
+                console.error('Error validating revenue consistency:', err);
+            }
+        }
 
         res.status(200).json({
             success: true,
@@ -73,6 +132,8 @@ const getDashboard = async (req, res) => {
                 performance: performanceData,
                 customers: customerData,
                 realTime: realTimeData,
+                gamification: gamificationData,
+                revenueConsistency,
                 generatedAt: new Date().toISOString()
             }
         });
@@ -378,17 +439,41 @@ const refreshAnalytics = async (req, res) => {
 
         console.log('Refreshing analytics', { providerID: validation.providerID, period });
 
-        // Force refresh all analytics data
+        // Force refresh all analytics data including gamification
         const [
             revenueData,
             performanceData,
             customerData,
-            realTimeData
+            realTimeData,
+            gamificationData
         ] = await Promise.all([
             RevenueAnalytics.getDashboardData(validation.providerID, period),
             PerformanceAnalytics.getPerformanceSummary(validation.providerID, period),
             CustomerAnalytics.getUniqueCustomerCount(validation.providerID, period),
-            RealTimeAnalytics.getTodayMetrics(validation.providerID)
+            RealTimeAnalytics.getTodayMetrics(validation.providerID),
+            // Fetch gamification data
+            (async () => {
+                try {
+                    const [gamificationStats, rankingData] = await Promise.all([
+                        Gamification.getGamificationData(validation.providerID),
+                        Gamification.getMonthlyRanking(validation.providerID)
+                    ]);
+                    
+                    return {
+                        totalPoints: gamificationStats.totalPoints || 0,
+                        monthlyPoints: gamificationStats.monthlyPoints || 0,
+                        rank: rankingData.rank || 0,
+                        previousRank: rankingData.previousRank || 0,
+                        percentile: rankingData.percentile || 0,
+                        tier: gamificationStats.tier || 'Beginner',
+                        badges: gamificationStats.badgesEarned || [],
+                        recentBadges: (gamificationStats.badgesEarned || []).slice(-3)
+                    };
+                } catch (err) {
+                    console.error('Error fetching gamification data:', err);
+                    return null;
+                }
+            })()
         ]);
 
         res.status(200).json({
@@ -401,6 +486,7 @@ const refreshAnalytics = async (req, res) => {
                 performance: performanceData,
                 customers: customerData,
                 realTime: realTimeData,
+                gamification: gamificationData,
                 refreshedAt: new Date().toISOString()
             }
         });

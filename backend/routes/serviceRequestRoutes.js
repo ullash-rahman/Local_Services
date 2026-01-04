@@ -10,7 +10,8 @@ const {
     deleteServiceRequest,
     getServiceRequestsByCategory,
     acceptServiceRequest,
-    rejectServiceRequest
+    rejectServiceRequest,
+    completeServiceRequest
 } = require('../controllers/serviceRequestController');
 
 // Create service request (Customer only)
@@ -27,6 +28,9 @@ router.post('/:requestID/accept', authenticate, authorize('Provider'), acceptSer
 
 // Reject service request (Provider only) - MUST come before /:requestID route
 router.post('/:requestID/reject', authenticate, authorize('Provider'), rejectServiceRequest);
+
+// Complete service request (Provider only) - marks service as completed
+router.post('/:requestID/complete', authenticate, authorize('Provider'), completeServiceRequest);
 
 // Get my service requests (Customer or Provider)
 router.get('/', authenticate, getMyServiceRequests);

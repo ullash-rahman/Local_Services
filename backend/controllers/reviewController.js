@@ -2,6 +2,8 @@ const Review = require('../models/Review');
 const ReviewValidator = require('../services/ReviewValidator');
 const ReviewAnalytics = require('../services/ReviewAnalytics');
 const Notification = require('../models/Notification');
+const Gamification = require('../models/Gamification');
+const IntegrationService = require('../services/IntegrationService');
 
 const submitReview = async (req, res) => {
     try {
@@ -93,11 +95,17 @@ const submitReview = async (req, res) => {
             console.error('Error creating review notification:', notifError);
         }
 
-        // Update analytics cache for the provider
+        // Use IntegrationService to handle cross-feature updates:
+        // - Update analytics cache for the provider
+        // - Award gamification points (10 base + rating * 5)
+        // - Check and award badges
+        // - Emit real-time notifications
         try {
-            await ReviewAnalytics.updateCache(eligibility.providerID);
-        } catch (cacheError) {
-            console.error('Error updating analytics cache:', cacheError);
+            await IntegrationService.onReviewSubmitted(reviewID, eligibility.providerID, rating);
+            console.log(`IntegrationService processed review submission for provider ${eligibility.providerID}`);
+        } catch (integrationError) {
+            console.error('Error in IntegrationService.onReviewSubmitted:', integrationError);
+            // Don't fail the review submission if integration fails
         }
 
         res.status(201).json({
@@ -208,6 +216,18 @@ const submitReply = async (req, res) => {
         } catch (notifError) {
             console.error('Error creating reply notification:', notifError);
             // Don't fail the reply submission if notification fails
+        }
+
+        // Use IntegrationService to handle cross-feature updates:
+        // - Award 5 bonus points for engagement (Requirements 3.5)
+        // - Check and award badges
+        // - Emit real-time notifications
+        try {
+            await IntegrationService.onReviewReplied(parsedReviewID, providerID, updatedReview.customerID);
+            console.log(`IntegrationService processed review reply for provider ${providerID}`);
+        } catch (integrationError) {
+            console.error('Error in IntegrationService.onReviewReplied:', integrationError);
+            // Don't fail the reply submission if integration fails
         }
 
         res.status(200).json({

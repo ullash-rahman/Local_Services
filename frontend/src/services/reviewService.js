@@ -8,8 +8,18 @@ let reviewSocket = null;
 // Event listeners registry for cleanup
 const eventListeners = new Map();
 
+/**
+ * Review Service
+ * API client methods for review endpoints and real-time notification handling
+ * Handles review_received and review_reply events for UI updates
+ * Requirements: 5.2, 5.3
+ */
 export const reviewService = {
 
+    /**
+     * Initialize socket connection for review events
+     * @returns {Socket|null} Socket instance or null if no auth token
+     */
     initializeSocket: () => {
         const token = authService.getToken();
         if (!token) {
@@ -22,7 +32,7 @@ export const reviewService = {
             return reviewSocket;
         }
 
-        const socketUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
+        const socketUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
         
         reviewSocket = io(socketUrl, {
             auth: { token },
@@ -47,10 +57,17 @@ export const reviewService = {
         return reviewSocket;
     },
 
+    /**
+     * Get the current socket instance
+     * @returns {Socket|null} Socket instance
+     */
     getSocket: () => {
         return reviewSocket;
     },
 
+    /**
+     * Disconnect and cleanup socket connection
+     */
     disconnectSocket: () => {
         if (reviewSocket) {
             // Remove all registered event listeners
@@ -67,6 +84,12 @@ export const reviewService = {
         }
     },
 
+    /**
+     * Subscribe to review_received events (new reviews)
+     * Requirement: 5.2 - WHEN a new review is submitted, THE Review_System SHALL emit a real-time notification to the provider
+     * @param {Function} callback - Callback function to handle new review events
+     * @returns {Function} Unsubscribe function
+     */
     onNewReview: (callback) => {
         if (!reviewSocket) {
             reviewService.initializeSocket();
@@ -77,6 +100,9 @@ export const reviewService = {
                 callback({
                     reviewID: data.reviewID,
                     requestID: data.requestID,
+                    providerID: data.providerID,
+                    customerID: data.customerID,
+                    rating: data.rating,
                     message: data.message,
                     timestamp: new Date()
                 });
@@ -102,6 +128,12 @@ export const reviewService = {
         };
     },
 
+    /**
+     * Subscribe to review_reply events
+     * Requirement: 5.3 - WHEN a provider replies to a review, THE Review_System SHALL emit a real-time notification to the customer
+     * @param {Function} callback - Callback function to handle review reply events
+     * @returns {Function} Unsubscribe function
+     */
     onReviewReply: (callback) => {
         if (!reviewSocket) {
             reviewService.initializeSocket();
@@ -112,6 +144,9 @@ export const reviewService = {
                 callback({
                     reviewID: data.reviewID,
                     requestID: data.requestID,
+                    providerID: data.providerID,
+                    customerID: data.customerID,
+                    replyText: data.replyText,
                     message: data.message,
                     timestamp: new Date()
                 });
@@ -137,6 +172,11 @@ export const reviewService = {
         };
     },
 
+    /**
+     * Subscribe to content_moderated events
+     * @param {Function} callback - Callback function to handle content moderated events
+     * @returns {Function} Unsubscribe function
+     */
     onContentModerated: (callback) => {
         if (!reviewSocket) {
             reviewService.initializeSocket();
@@ -172,6 +212,11 @@ export const reviewService = {
         };
     },
 
+    /**
+     * Subscribe to content_flagged events
+     * @param {Function} callback - Callback function to handle content flagged events
+     * @returns {Function} Unsubscribe function
+     */
     onContentFlagged: (callback) => {
         if (!reviewSocket) {
             reviewService.initializeSocket();
@@ -206,6 +251,15 @@ export const reviewService = {
         };
     },
 
+    /**
+     * Subscribe to all review events with a single call
+     * @param {Object} handlers - Object containing callback handlers
+     * @param {Function} handlers.onNewReview - Callback for new review events (Requirement 5.2)
+     * @param {Function} handlers.onReviewReply - Callback for review reply events (Requirement 5.3)
+     * @param {Function} handlers.onContentModerated - Callback for content moderated events
+     * @param {Function} handlers.onContentFlagged - Callback for content flagged events
+     * @returns {Function} Unsubscribe function for all events
+     */
     subscribeToReviewNotifications: (handlers = {}) => {
         const unsubscribers = [];
 

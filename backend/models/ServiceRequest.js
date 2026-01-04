@@ -38,9 +38,11 @@ class ServiceRequest {
             SELECT 
                 sr.*,
                 p.name as providerName,
-                p.email as providerEmail
+                p.email as providerEmail,
+                CASE WHEN r.reviewID IS NOT NULL THEN 1 ELSE 0 END as hasReview
             FROM ServiceRequest sr
             LEFT JOIN USER p ON sr.providerID = p.userID
+            LEFT JOIN Review r ON sr.requestID = r.requestID
             WHERE sr.customerID = ?
         `;
         const params = [customerID];
@@ -278,6 +280,13 @@ class ServiceRequest {
         const query = `UPDATE ServiceRequest SET ${updates.join(', ')} WHERE requestID = ?`;
         await pool.execute(query, params);
         return await this.findById(requestID);
+    }
+
+    // Update service request status
+    static async updateStatus(requestID, status) {
+        const query = `UPDATE ServiceRequest SET status = ? WHERE requestID = ?`;
+        const [result] = await pool.execute(query, [status, requestID]);
+        return result.affectedRows > 0;
     }
 }
 
