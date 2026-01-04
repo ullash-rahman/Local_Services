@@ -46,17 +46,20 @@ class Review {
             
             const params = [providerID];
 
-            // Filter out hidden reviews unless explicitly requested
-            if (!includeHidden) {
-                query += ' AND (r.isHidden = FALSE OR r.isHidden IS NULL)';
-            }
-
-            // Add sorting
-            query += ` ORDER BY r.${sortBy} ${sortOrder}`;
+            // Validate and sanitize sortBy to prevent SQL injection
+            const allowedSortFields = ['createdAt', 'rating'];
+            const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+            const safeSortOrder = (sortOrder === 'ASC' || sortOrder === 'DESC') ? sortOrder : 'DESC';
             
-            // Add pagination
-            query += ' LIMIT ? OFFSET ?';
-            params.push(limit, offset);
+            // Validate limit and offset are numbers
+            const safeLimit = Math.max(1, Math.min(50, parseInt(limit, 10) || 10));
+            const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
+            
+            // Add sorting (column names cannot be parameterized, so we validate them)
+            query += ` ORDER BY r.${safeSortBy} ${safeSortOrder}`;
+            
+            // Add pagination (LIMIT/OFFSET must be numbers, not parameters for MySQL)
+            query += ` LIMIT ${safeLimit} OFFSET ${safeOffset}`;
 
             const [rows] = await pool.execute(query, params);
             
@@ -77,7 +80,7 @@ class Review {
                 FROM Review r
                 JOIN USER u ON r.customerID = u.userID
                 JOIN USER p ON r.providerID = p.userID
-                WHERE r.requestID = ? AND (r.isHidden = FALSE OR r.isHidden IS NULL)
+                WHERE r.requestID = ?
             `;
             const [rows] = await pool.execute(query, [requestID]);
             return rows[0] || null;
@@ -137,7 +140,7 @@ class Review {
                 MAX(rating) as maxRating,
                 COUNT(CASE WHEN rating >= 4 THEN 1 END) as positiveReviews
             FROM Review 
-            WHERE providerID = ? AND (isHidden = FALSE OR isHidden IS NULL)
+            WHERE providerID = ?
         `;
         const [rows] = await pool.execute(query, [providerID]);
         const stats = rows[0];
@@ -156,7 +159,7 @@ class Review {
                 rating,
                 COUNT(*) as count
             FROM Review 
-            WHERE providerID = ? AND (isHidden = FALSE OR isHidden IS NULL)
+            WHERE providerID = ?
             GROUP BY rating
             ORDER BY rating DESC
         `;
@@ -180,7 +183,7 @@ class Review {
             SELECT r.*, u.name as customerName
             FROM Review r
             JOIN USER u ON r.customerID = u.userID
-            WHERE r.providerID = ? AND (r.isHidden = FALSE OR r.isHidden IS NULL)
+            WHERE r.providerID = ?
             ORDER BY r.createdAt DESC
             LIMIT ?
         `;
@@ -207,7 +210,7 @@ class Review {
         const query = `
             SELECT COUNT(*) as count
             FROM Review r
-            WHERE r.providerID = ? AND (r.isHidden = FALSE OR r.isHidden IS NULL) ${dateCondition}
+            WHERE r.providerID = ? ${dateCondition}
         `;
         const [rows] = await pool.execute(query, [providerID]);
         return rows[0].count;
@@ -221,7 +224,6 @@ class Review {
                 COUNT(*) as reviewCount
             FROM Review
             WHERE providerID = ? 
-                AND (isHidden = FALSE OR isHidden IS NULL)
                 AND createdAt >= DATE_SUB(NOW(), INTERVAL ? MONTH)
             GROUP BY DATE_FORMAT(createdAt, '%Y-%m')
             ORDER BY month ASC
@@ -240,7 +242,7 @@ class Review {
                 COUNT(*) as totalReviews,
                 COUNT(CASE WHEN rating >= 4 THEN 1 END) as satisfiedReviews
             FROM Review
-            WHERE providerID = ? AND (isHidden = FALSE OR isHidden IS NULL)
+            WHERE providerID = ?
         `;
         const [rows] = await pool.execute(query, [providerID]);
         const result = rows[0];
@@ -647,7 +649,7 @@ class Review {
         const query = `
             SELECT COUNT(*) as count
             FROM Review
-            WHERE providerID = ? AND (isHidden = FALSE OR isHidden IS NULL)
+            WHERE providerID = ?
         `;
         const [rows] = await pool.execute(query, [providerID]);
         return rows[0].count;
@@ -657,7 +659,7 @@ class Review {
         const query = `
             SELECT AVG(rating) as averageRating
             FROM Review
-            WHERE providerID = ? AND (isHidden = FALSE OR isHidden IS NULL)
+            WHERE providerID = ?
         `;
         const [rows] = await pool.execute(query, [providerID]);
         const avg = rows[0].averageRating;

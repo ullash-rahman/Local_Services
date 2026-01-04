@@ -434,3 +434,29 @@
     font-size: 9px;
     color: #95a5a6;
 }
+
+
+/* Clickable Stat Card Link */
+.stat-card-link {
+    text-decoration: none;
+    color: white;
+    cursor: pointer;
+    position: relative;
+}
+
+.stat-card-link:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px rgba(90, 159, 212, 0.4);
+}
+
+.stat-card-link .view-details {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.stat-card-link:hover .view-details {
+    opacity: 1;
+}

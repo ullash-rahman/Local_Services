@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { serviceRequestService } from '../../services/serviceRequestService';
 import EditServiceRequest from './EditServiceRequest';
+import { SERVICE_CATEGORIES, CATEGORY_COLORS } from '../../utils/categories';
 import './ServiceRequestList.css';
 
 const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
@@ -9,29 +10,39 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
     const [error, setError] = useState(null);
     const [editingRequest, setEditingRequest] = useState(null);
     const [statusFilter, setStatusFilter] = useState('all');
+    const [categoryFilter, setCategoryFilter] = useState('all');
 
-    useEffect(() => {
-        loadRequests();
-    }, [statusFilter]);
-
-    const loadRequests = async () => {
+    const loadRequests = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
             let response;
             
+            const statusParam = statusFilter !== 'all' ? statusFilter : null;
+            const categoryParam = categoryFilter !== 'all' ? categoryFilter : null;
+            
+            console.log('Loading requests with filters:', { userRole, statusFilter, categoryFilter, statusParam, categoryParam });
+            
             if (userRole === 'Customer') {
                 // Get customer's own requests
                 response = await serviceRequestService.getMyServiceRequests(
-                    statusFilter !== 'all' ? statusFilter : null
+                    statusParam,
+                    categoryParam
                 );
             } else {
                 // Get all pending requests for providers
-                response = await serviceRequestService.getPendingRequests();
+                response = await serviceRequestService.getPendingRequests(
+                    categoryParam
+                );
             }
+            
+            console.log('Response received:', response);
 
             if (response.success) {
-                setRequests(response.data.requests || []);
+                const requests = response.data.requests || [];
+                console.log('Setting requests:', requests.length, 'requests');
+                console.log('Request categories:', requests.map(r => r.category));
+                setRequests(requests);
             } else {
                 setError(response.message || 'Failed to load service requests');
             }
@@ -42,7 +53,11 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [userRole, statusFilter, categoryFilter]);
+
+    useEffect(() => {
+        loadRequests();
+    }, [statusFilter, categoryFilter, loadRequests]);
 
     const handleEdit = (request) => {
         setEditingRequest(request);
@@ -170,27 +185,81 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
                 <h2>
                     {userRole === 'Customer' ? 'My Service Requests' : 'Available Service Requests'}
                 </h2>
-                {userRole === 'Customer' && (
+                <div className="filters-container">
+                    {userRole === 'Customer' && (
+                        <div className="filter-section">
+                            <label>Filter by Status:</label>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="status-filter"
+                            >
+                                <option value="all">All Status</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Accepted">Accepted</option>
+                                <option value="Ongoing">Ongoing</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Cancelled">Cancelled</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                        </div>
+                    )}
                     <div className="filter-section">
-                        <label>Filter by Status:</label>
+                        <label>Filter by Category:</label>
                         <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="status-filter"
+                            value={categoryFilter}
+                            onChange={(e) => setCategoryFilter(e.target.value)}
+                            className="category-filter"
                         >
-                            <option value="all">All</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Accepted">Accepted</option>
-                            <option value="Ongoing">Ongoing</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Cancelled">Cancelled</option>
-                            <option value="Rejected">Rejected</option>
+                            <option value="all">All Categories</option>
+                            {SERVICE_CATEGORIES.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
                         </select>
                     </div>
-                )}
-                <button onClick={loadRequests} className="btn-refresh">
-                    Refresh
-                </button>
+                    <button onClick={loadRequests} className="btn-refresh">
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            {/* Category Filter Chips */}
+            <div className="category-filters">
+                <div className="category-filters-label">Quick Filter:</div>
+                <div className="category-chips">
+                    <button
+                        type="button"
+                        className={`category-chip ${categoryFilter === 'all' ? 'active' : ''}`}
+                        onClick={() => {
+                            console.log('Quick filter clicked: All');
+                            setCategoryFilter('all');
+                        }}
+                    >
+                        All
+                    </button>
+                    {SERVICE_CATEGORIES.map(category => {
+                        const colors = CATEGORY_COLORS[category] || CATEGORY_COLORS['Other'];
+                        return (
+                            <button
+                                key={category}
+                                type="button"
+                                className={`category-chip ${categoryFilter === category ? 'active' : ''}`}
+                                onClick={() => {
+                                    console.log('Quick filter clicked:', category);
+                                    setCategoryFilter(category);
+                                }}
+                                style={{
+                                    backgroundColor: categoryFilter === category ? colors.bg : '#f5f5f5',
+                                    color: categoryFilter === category ? colors.text : '#666',
+                                    borderColor: categoryFilter === category ? colors.text : '#ddd'
+                                }}
+                            >
+                                <span className="category-icon">{colors.icon}</span>
+                                {category}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
 
             {error && (

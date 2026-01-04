@@ -39,17 +39,29 @@ const getDashboard = async (req, res) => {
 
         console.log('Getting dashboard analytics', { providerID: validation.providerID, period });
 
-        // Fetch all analytics data in parallel
+        // Fetch all analytics data in parallel, with error handling for each
         const [
             revenueData,
             performanceData,
             customerData,
             realTimeData
         ] = await Promise.all([
-            RevenueAnalytics.getDashboardData(validation.providerID, period),
-            PerformanceAnalytics.getPerformanceSummary(validation.providerID, period),
-            CustomerAnalytics.getUniqueCustomerCount(validation.providerID, period),
-            RealTimeAnalytics.getTodayMetrics(validation.providerID)
+            RevenueAnalytics.getDashboardData(validation.providerID, period).catch(err => {
+                console.error('Error fetching revenue data:', err);
+                return null;
+            }),
+            PerformanceAnalytics.getPerformanceSummary(validation.providerID, period).catch(err => {
+                console.error('Error fetching performance data:', err);
+                return null;
+            }),
+            CustomerAnalytics.getUniqueCustomerCount(validation.providerID, period).catch(err => {
+                console.error('Error fetching customer data:', err);
+                return null;
+            }),
+            RealTimeAnalytics.getTodayMetrics(validation.providerID).catch(err => {
+                console.error('Error fetching real-time data:', err);
+                return null;
+            })
         ]);
 
         res.status(200).json({
@@ -184,7 +196,7 @@ const getCustomerAnalytics = async (req, res) => {
 
         console.log('Getting customer analytics', { providerID: validation.providerID, period });
 
-        // Fetch all customer analytics in parallel
+        // Fetch all customer analytics in parallel, with error handling
         const [
             uniqueCustomers,
             retentionRate,
@@ -193,12 +205,12 @@ const getCustomerAnalytics = async (req, res) => {
             acquisitionTrends,
             customerLifetimeValue
         ] = await Promise.all([
-            CustomerAnalytics.getUniqueCustomerCount(validation.providerID, period),
-            CustomerAnalytics.getRetentionRate(validation.providerID),
-            CustomerAnalytics.getGeographicDistribution(validation.providerID),
-            CustomerAnalytics.getPeakServiceTimes(validation.providerID),
-            CustomerAnalytics.getAcquisitionTrends(validation.providerID, period),
-            CustomerAnalytics.getCustomerLifetimeValue(validation.providerID)
+            CustomerAnalytics.getUniqueCustomerCount(validation.providerID, period).catch(() => null),
+            CustomerAnalytics.getRetentionRate(validation.providerID).catch(() => null),
+            CustomerAnalytics.getGeographicDistribution(validation.providerID).catch(() => null),
+            CustomerAnalytics.getPeakServiceTimes(validation.providerID).catch(() => null),
+            CustomerAnalytics.getAcquisitionTrends(validation.providerID, period).catch(() => null),
+            CustomerAnalytics.getCustomerLifetimeValue(validation.providerID).catch(() => null)
         ]);
 
         res.status(200).json({
@@ -247,7 +259,7 @@ const getBenchmarks = async (req, res) => {
 
         console.log('Getting benchmarks', { providerID: validation.providerID });
 
-        // Fetch all benchmarking data in parallel
+        // Fetch all benchmarking data in parallel, with error handling
         const [
             platformAverages,
             percentileRankings,
@@ -255,11 +267,11 @@ const getBenchmarks = async (req, res) => {
             seasonalTrends,
             improvementSuggestions
         ] = await Promise.all([
-            BenchmarkingService.getPlatformAverages(),
-            BenchmarkingService.getPercentileRankings(validation.providerID),
-            BenchmarkingService.getYearOverYearComparison(validation.providerID),
-            BenchmarkingService.getSeasonalTrends(validation.providerID),
-            BenchmarkingService.getImprovementSuggestions(validation.providerID)
+            BenchmarkingService.getPlatformAverages().catch(() => null),
+            BenchmarkingService.getPercentileRankings(validation.providerID).catch(() => null),
+            BenchmarkingService.getYearOverYearComparison(validation.providerID).catch(() => null),
+            BenchmarkingService.getSeasonalTrends(validation.providerID).catch(() => null),
+            BenchmarkingService.getImprovementSuggestions(validation.providerID).catch(() => null)
         ]);
 
         res.status(200).json({

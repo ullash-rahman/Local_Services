@@ -33,7 +33,7 @@ class ServiceRequest {
     }
 
     // Get all service requests by customer
-    static async getByCustomer(customerID, status = null) {
+    static async getByCustomer(customerID, status = null, category = null) {
         let query = `
             SELECT 
                 sr.*,
@@ -50,14 +50,32 @@ class ServiceRequest {
             params.push(status);
         }
         
+        if (category) {
+            // Normalize category for comparison (trim)
+            const normalizedCategory = category.trim();
+            // Simple equality comparison (MySQL is case-insensitive by default for most collations)
+            query += ' AND sr.category = ?';
+            params.push(normalizedCategory);
+        }
+        
         query += ' ORDER BY sr.createdAt DESC';
         
+        console.log('getByCustomer - SQL Query:', query);
+        console.log('getByCustomer - Params:', params);
+        console.log('getByCustomer - Original category:', category);
+        console.log('getByCustomer - Normalized category:', category ? category.trim() : null);
         const [rows] = await pool.execute(query, params);
+        console.log('getByCustomer - Rows returned:', rows.length);
+        if (rows.length > 0) {
+            console.log('getByCustomer - All categories in results:', rows.map(r => `"${r.category}"`));
+        } else {
+            console.log('getByCustomer - No rows returned for category:', category);
+        }
         return rows;
     }
 
     // Get all service requests by provider
-    static async getByProvider(providerID, status = null) {
+    static async getByProvider(providerID, status = null, category = null) {
         let query = `
             SELECT 
                 sr.*,
@@ -73,6 +91,13 @@ class ServiceRequest {
         if (status) {
             query += ' AND sr.status = ?';
             params.push(status);
+        }
+        
+        if (category) {
+            // Normalize category for comparison (trim and lowercase)
+            const normalizedCategory = category.trim().toLowerCase();
+            query += ' AND LOWER(TRIM(sr.category)) = ?';
+            params.push(normalizedCategory);
         }
         
         query += ' ORDER BY sr.createdAt DESC';
@@ -96,8 +121,10 @@ class ServiceRequest {
         const params = [];
         
         if (category) {
-            query += ' AND sr.category = ?';
-            params.push(category);
+            // Normalize category for comparison (trim and lowercase)
+            const normalizedCategory = category.trim().toLowerCase();
+            query += ' AND LOWER(TRIM(sr.category)) = ?';
+            params.push(normalizedCategory);
         }
         
         query += ' ORDER BY sr.createdAt DESC';
@@ -199,6 +226,58 @@ class ServiceRequest {
         `;
         const [result] = await pool.execute(query, [requestID]);
         return result.affectedRows > 0;
+    }
+
+    // Accept manual booking (Provider only) - providerID is already set, just update status
+    static async acceptManualBooking(requestID, providerID) {
+        const query = `
+            UPDATE ServiceRequest 
+            SET status = 'Accepted'
+            WHERE requestID = ? AND providerID = ? AND status = 'Pending'
+        `;
+        const [result] = await pool.execute(query, [requestID, providerID]);
+        return result.affectedRows > 0;
+    }
+
+    // Reject manual booking (Provider only) - providerID is already set, just update status
+    static async rejectManualBooking(requestID, providerID) {
+        const query = `
+            UPDATE ServiceRequest 
+            SET status = 'Rejected'
+            WHERE requestID = ? AND providerID = ? AND status = 'Pending'
+        `;
+        const [result] = await pool.execute(query, [requestID, providerID]);
+        return result.affectedRows > 0;
+    }
+
+    // Update service request with providerID (for manual bookings)
+    static async updateWithProvider(requestID, updateData) {
+        const { providerID, status, priorityLevel } = updateData;
+        
+        const updates = [];
+        const params = [];
+        
+        if (providerID !== undefined) {
+            updates.push('providerID = ?');
+            params.push(providerID);
+        }
+        if (status !== undefined) {
+            updates.push('status = ?');
+            params.push(status);
+        }
+        if (priorityLevel !== undefined) {
+            updates.push('priorityLevel = ?');
+            params.push(priorityLevel);
+        }
+        
+        if (updates.length === 0) {
+            return await this.findById(requestID);
+        }
+        
+        params.push(requestID);
+        const query = `UPDATE ServiceRequest SET ${updates.join(', ')} WHERE requestID = ?`;
+        await pool.execute(query, params);
+        return await this.findById(requestID);
     }
 }
 
