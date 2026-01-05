@@ -124,10 +124,12 @@ const getPaymentsByProvider = async (req, res) => {
  */
 const getPaymentsByCustomer = async (req, res) => {
     try {
+        console.log('getPaymentsByCustomer called:', req.params, req.user);
         const { customerId } = req.params;
         const validation = validateCustomerAccess(req, customerId);
         
         if (!validation.valid) {
+            console.log('Validation failed:', validation);
             return res.status(validation.statusCode).json({
                 success: false,
                 error: {
@@ -138,13 +140,16 @@ const getPaymentsByCustomer = async (req, res) => {
         }
 
         const filters = parseFilters(req.query);
+        console.log('Fetching payments for customer:', validation.customerId, 'with filters:', filters);
         const payments = await PaymentStatusService.getPaymentsByCustomer(validation.customerId, filters);
+        console.log('Found payments:', payments?.length || 0);
 
         res.status(200).json({
             success: true,
-            data: payments
+            data: payments || []
         });
     } catch (error) {
+        console.error('Error fetching customer payments:', error);
         handleError(res, error, 'fetching customer payments');
     }
 };

@@ -87,7 +87,7 @@ class EarningsExportService {
                 FROM Payment p
                 JOIN ServiceRequest sr ON p.requestID = sr.requestID
                 WHERE sr.providerID = ?
-                    AND p.status = 'Completed'
+                    AND p.status = 'Paid'
                     AND DATE(p.paymentDate) >= ?
                     AND DATE(p.paymentDate) <= ?
                     ${categoryCondition}
@@ -215,7 +215,7 @@ class EarningsExportService {
                 FROM Payment p
                 JOIN ServiceRequest sr ON p.requestID = sr.requestID
                 WHERE sr.providerID = ?
-                    AND p.status = 'Completed'
+                    AND p.status = 'Paid'
                     AND DATE(p.paymentDate) >= ?
                     AND DATE(p.paymentDate) <= ?
                     ${categoryCondition}

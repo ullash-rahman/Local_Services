@@ -10,6 +10,10 @@ const {
     getPaymentById
 } = require('../controllers/paymentController');
 
+// Payment action endpoints (specific routes first to avoid conflicts)
+// POST /api/payments/check-overdue - Check and update overdue payments
+router.post('/check-overdue', authenticate, authorize('Provider', 'Admin'), checkOverduePayments);
+
 // Provider payment endpoints
 // GET /api/payments/provider/:providerId - Get all payments for a provider
 router.get('/provider/:providerId', authenticate, authorize('Provider', 'Admin'), getPaymentsByProvider);
@@ -17,7 +21,7 @@ router.get('/provider/:providerId', authenticate, authorize('Provider', 'Admin')
 // GET /api/payments/summary/:providerId - Get payment summary statistics for a provider
 router.get('/summary/:providerId', authenticate, authorize('Provider', 'Admin'), getPaymentSummary);
 
-// Customer payment endpoints
+// Customer payment endpoints - MUST come before /:paymentId route
 // GET /api/payments/customer/:customerId - Get all payments for a customer
 router.get('/customer/:customerId', authenticate, authorize('Customer', 'Admin'), getPaymentsByCustomer);
 
@@ -25,10 +29,7 @@ router.get('/customer/:customerId', authenticate, authorize('Customer', 'Admin')
 // PUT /api/payments/:paymentId/mark-paid - Mark a payment as paid
 router.put('/:paymentId/mark-paid', authenticate, authorize('Provider', 'Admin'), markPaymentAsPaid);
 
-// POST /api/payments/check-overdue - Check and update overdue payments
-router.post('/check-overdue', authenticate, authorize('Provider', 'Admin'), checkOverduePayments);
-
-// Single payment endpoint
+// Single payment endpoint - MUST be last (catch-all route)
 // GET /api/payments/:paymentId - Get single payment details
 router.get('/:paymentId', authenticate, getPaymentById);
 

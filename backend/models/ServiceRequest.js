@@ -36,10 +36,17 @@ class ServiceRequest {
                 c.phone as customerPhone,
                 p.name as providerName,
                 p.email as providerEmail,
-                p.phone as providerPhone
+                p.phone as providerPhone,
+                pay.paymentID,
+                pay.amount as paymentAmount,
+                pay.status as paymentStatus,
+                NULL as paymentDueDate,
+                pay.paymentDate,
+                pay.paymentMethod
             FROM ServiceRequest sr
             LEFT JOIN USER c ON sr.customerID = c.userID
             LEFT JOIN USER p ON sr.providerID = p.userID
+            LEFT JOIN Payment pay ON sr.requestID = pay.requestID
             WHERE sr.requestID = ?
         `;
         const [rows] = await pool.execute(query, [requestID]);
@@ -65,10 +72,17 @@ class ServiceRequest {
                 sr.updatedAt,
                 p.name as providerName,
                 p.email as providerEmail,
-                CASE WHEN r.reviewID IS NOT NULL THEN 1 ELSE 0 END as hasReview
+                CASE WHEN r.reviewID IS NOT NULL THEN 1 ELSE 0 END as hasReview,
+                pay.paymentID,
+                pay.amount as paymentAmount,
+                pay.status as paymentStatus,
+                NULL as paymentDueDate,
+                pay.paymentDate,
+                pay.paymentMethod
             FROM ServiceRequest sr
             LEFT JOIN USER p ON sr.providerID = p.userID
             LEFT JOIN Review r ON sr.requestID = r.requestID
+            LEFT JOIN Payment pay ON sr.requestID = pay.requestID
             WHERE sr.customerID = ?
         `;
         const params = [customerID];
@@ -120,9 +134,16 @@ class ServiceRequest {
                 sr.updatedAt,
                 c.name as customerName,
                 c.email as customerEmail,
-                c.phone as customerPhone
+                c.phone as customerPhone,
+                pay.paymentID,
+                pay.amount as paymentAmount,
+                pay.status as paymentStatus,
+                NULL as paymentDueDate,
+                pay.paymentDate,
+                pay.paymentMethod
             FROM ServiceRequest sr
             LEFT JOIN USER c ON sr.customerID = c.userID
+            LEFT JOIN Payment pay ON sr.requestID = pay.requestID
             WHERE sr.providerID = ?
         `;
         const params = [providerID];
@@ -163,13 +184,31 @@ class ServiceRequest {
     static async getPendingRequests(category = null) {
         let query = `
             SELECT 
-                sr.*,
-                sr.priorityLevel,
+                sr.requestID,
+                sr.customerID,
+                sr.providerID,
+                sr.category,
+                sr.description,
+                sr.requestDate,
+                sr.serviceDate,
+                sr.status,
+                COALESCE(sr.priorityLevel, 'Normal') as priorityLevel,
+                sr.completionConfirmed,
+                sr.cancellationReason,
+                sr.createdAt,
+                sr.updatedAt,
                 c.name as customerName,
                 c.email as customerEmail,
-                c.phone as customerPhone
+                c.phone as customerPhone,
+                pay.paymentID,
+                pay.amount as paymentAmount,
+                pay.status as paymentStatus,
+                NULL as paymentDueDate,
+                pay.paymentDate,
+                pay.paymentMethod
             FROM ServiceRequest sr
             LEFT JOIN USER c ON sr.customerID = c.userID
+            LEFT JOIN Payment pay ON sr.requestID = pay.requestID
             WHERE sr.status = 'Pending' AND sr.providerID IS NULL
         `;
         const params = [];
@@ -196,7 +235,38 @@ class ServiceRequest {
 
     // Get all requests for provider: unaccepted (pending) + accepted by this provider
     static async getProviderRequests(providerID, status = null, category = null) {
-        let query = `
+        let baseCondition;
+        const params = [];
+        
+        // Handle status filter
+        if (status) {
+            if (status === 'Pending') {
+                // Only show unaccepted pending requests
+                baseCondition = `sr.status = 'Pending' AND sr.providerID IS NULL`;
+                // No params needed for this condition
+            } else {
+                // Only show provider's requests with this specific status
+                baseCondition = `sr.providerID = ? AND sr.status = ?`;
+                params.push(providerID);
+                params.push(status);
+            }
+        } else {
+            // No status filter: show both unaccepted pending and provider's accepted requests
+            baseCondition = `(sr.status = 'Pending' AND sr.providerID IS NULL) OR (sr.providerID = ?)`;
+            params.push(providerID);
+        }
+        
+        // Handle category filter - apply to both parts of OR condition
+        let whereClause = baseCondition;
+        if (category) {
+            const normalizedCategory = category.trim().toLowerCase();
+            // Wrap base condition in parentheses and apply category filter
+            whereClause = `(${baseCondition}) AND LOWER(TRIM(sr.category)) = ?`;
+            params.push(normalizedCategory);
+        }
+        
+        // Build final query
+        const query = `
             SELECT 
                 sr.requestID,
                 sr.customerID,
@@ -213,48 +283,30 @@ class ServiceRequest {
                 sr.updatedAt,
                 c.name as customerName,
                 c.email as customerEmail,
-                c.phone as customerPhone
+                c.phone as customerPhone,
+                pay.paymentID,
+                pay.amount as paymentAmount,
+                pay.status as paymentStatus,
+                NULL as paymentDueDate,
+                pay.paymentDate,
+                pay.paymentMethod
             FROM ServiceRequest sr
             LEFT JOIN USER c ON sr.customerID = c.userID
-            WHERE (sr.status = 'Pending' AND sr.providerID IS NULL)
-               OR (sr.providerID = ?)
+            LEFT JOIN Payment pay ON sr.requestID = pay.requestID
+            WHERE ${whereClause}
+            ORDER BY 
+                CASE COALESCE(sr.priorityLevel, 'Normal')
+                    WHEN 'Emergency' THEN 1
+                    WHEN 'High' THEN 2
+                    WHEN 'Normal' THEN 3
+                    ELSE 4
+                END,
+                sr.createdAt DESC
         `;
-        const params = [providerID];
-        
-        if (status) {
-            if (status === 'Pending') {
-                // Only show unaccepted pending requests
-                query = query.replace(
-                    'WHERE (sr.status = \'Pending\' AND sr.providerID IS NULL) OR (sr.providerID = ?)',
-                    'WHERE sr.status = \'Pending\' AND sr.providerID IS NULL'
-                );
-                params.pop(); // Remove providerID param since we're not using it
-            } else {
-                // Only show provider's requests with this status
-                query = query.replace(
-                    'WHERE (sr.status = \'Pending\' AND sr.providerID IS NULL) OR (sr.providerID = ?)',
-                    'WHERE sr.providerID = ? AND sr.status = ?'
-                );
-                params.push(status);
-            }
-        }
-        
-        if (category) {
-            const normalizedCategory = category.trim().toLowerCase();
-            query += ' AND LOWER(TRIM(sr.category)) = ?';
-            params.push(normalizedCategory);
-        }
-        
-        query += ` ORDER BY 
-            CASE COALESCE(sr.priorityLevel, 'Normal')
-                WHEN 'Emergency' THEN 1
-                WHEN 'High' THEN 2
-                WHEN 'Normal' THEN 3
-                ELSE 4
-            END,
-            sr.createdAt DESC`;
         
         const [rows] = await pool.execute(query, params);
+        console.log('getProviderRequests - Query:', query);
+        console.log('getProviderRequests - Params:', params);
         console.log('getProviderRequests - Rows returned:', rows.length);
         if (rows.length > 0) {
             console.log('getProviderRequests - Sample:', rows.slice(0, 3).map(r => ({ 
@@ -419,6 +471,9 @@ class ServiceRequest {
     static async updateStatus(requestID, status) {
         const query = `UPDATE ServiceRequest SET status = ? WHERE requestID = ?`;
         const [result] = await pool.execute(query, [status, requestID]);
+        return result.affectedRows > 0;
+    }
+
     // Cancel service request (Customer only) - with cancellation reason
     static async cancelRequest(requestID, customerID, cancellationReason) {
         const query = `

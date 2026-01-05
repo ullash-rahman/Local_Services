@@ -15,6 +15,12 @@ const PaymentList = ({
     onMarkAsPaid,
     refreshTrigger 
 }) => {
+    // Debug logging
+    console.log('PaymentList - Props:', {
+        userId,
+        userRole,
+        hasOnMarkAsPaid: !!onMarkAsPaid
+    });
     // Filter state
     const [statusFilter, setStatusFilter] = useState('');
     const [startDate, setStartDate] = useState('');
@@ -29,7 +35,10 @@ const PaymentList = ({
      * Fetch payments based on user role and filters
      */
     const fetchPayments = useCallback(async () => {
-        if (!userId) return;
+        if (!userId || !userRole) {
+            setIsLoading(false);
+            return;
+        }
         
         setIsLoading(true);
         setError(null);
@@ -43,13 +52,18 @@ const PaymentList = ({
             let data;
             if (userRole === 'Provider') {
                 data = await paymentService.getPaymentsByProvider(userId, filters);
-            } else {
+            } else if (userRole === 'Customer') {
                 data = await paymentService.getPaymentsByCustomer(userId, filters);
+            } else {
+                throw new Error('Invalid user role');
             }
+            console.log('PaymentList - Fetched payments:', data);
+            console.log('PaymentList - First payment sample:', data && data.length > 0 ? data[0] : 'No payments');
             setPayments(data || []);
         } catch (err) {
             console.error('Error fetching payments:', err);
-            setError('Failed to load payments');
+            const errorMessage = err.response?.data?.error?.message || err.message || 'Failed to load payments';
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -111,6 +125,11 @@ const PaymentList = ({
                 <button className="retry-button" onClick={fetchPayments}>
                     Try Again
                 </button>
+                <p className="error-hint">
+                    {error.includes('Failed to load') 
+                        ? 'If you have no payments yet, this is normal. Payments are created when services are completed.'
+                        : 'Please check your connection and try again.'}
+                </p>
             </div>
         );
     }
@@ -187,7 +206,7 @@ const PaymentList = ({
                                 <th>Status</th>
                                 <th>Due Date</th>
                                 <th>Payment Date</th>
-                                {userRole === 'Provider' && <th>Actions</th>}
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -221,8 +240,20 @@ const PaymentList = ({
  */
 const PaymentRow = ({ payment, userRole, onMarkAsPaid }) => {
     const statusClass = paymentService.getStatusColorClass(payment.status);
-    const dueDateInfo = paymentService.getDueDateInfo(payment.dueDate);
-    const canMarkAsPaid = userRole === 'Provider' && payment.status !== 'Paid';
+    const dueDateInfo = payment.dueDate ? paymentService.getDueDateInfo(payment.dueDate) : null;
+    // Provider can mark as paid if payment exists, status is not 'Paid', and user is Provider
+    const canMarkAsPaid = userRole === 'Provider' && payment.paymentID && payment.status && payment.status !== 'Paid';
+    
+    // Debug logging
+    if (userRole === 'Provider') {
+        console.log('PaymentRow Debug:', {
+            paymentID: payment.paymentID,
+            status: payment.status,
+            userRole,
+            canMarkAsPaid,
+            payment: payment
+        });
+    }
 
     return (
         <tr className={payment.status === 'Overdue' ? 'overdue-row' : ''}>
@@ -251,11 +282,17 @@ const PaymentRow = ({ payment, userRole, onMarkAsPaid }) => {
             </td>
             <td>
                 <div className="due-date-cell">
-                    <span>{paymentService.formatDate(payment.dueDate)}</span>
-                    {payment.status !== 'Paid' && dueDateInfo.label && (
-                        <span className={`due-date-label ${dueDateInfo.isOverdue ? 'overdue' : ''}`}>
-                            {dueDateInfo.label}
-                        </span>
+                    {payment.dueDate ? (
+                        <>
+                            <span>{paymentService.formatDate(payment.dueDate)}</span>
+                            {payment.status !== 'Paid' && dueDateInfo && dueDateInfo.label && (
+                                <span className={`due-date-label ${dueDateInfo.isOverdue ? 'overdue' : ''}`}>
+                                    {dueDateInfo.label}
+                                </span>
+                            )}
+                        </>
+                    ) : (
+                        <span>-</span>
                     )}
                 </div>
             </td>
@@ -265,18 +302,42 @@ const PaymentRow = ({ payment, userRole, onMarkAsPaid }) => {
                     : '-'
                 }
             </td>
-            {userRole === 'Provider' && (
-                <td>
-                    {canMarkAsPaid && (
-                        <button 
-                            className="mark-paid-btn"
-                            onClick={() => onMarkAsPaid && onMarkAsPaid(payment)}
-                        >
-                            Mark Paid
-                        </button>
-                    )}
-                </td>
-            )}
+            <td>
+                {/* Always show button - will be disabled if not Provider or already paid */}
+                <button 
+                    className="mark-paid-btn"
+                    onClick={() => {
+                        console.log('Mark Paid clicked for payment:', payment);
+                        console.log('User Role:', userRole, 'Can Mark:', canMarkAsPaid);
+                        if (onMarkAsPaid && canMarkAsPaid) {
+                            onMarkAsPaid(payment);
+                        } else {
+                            alert(`Cannot mark as paid:\nRole: ${userRole}\nStatus: ${payment.status}\nPaymentID: ${payment.paymentID}\nCan Mark: ${canMarkAsPaid}`);
+                            console.error('Cannot mark as paid:', {
+                                hasHandler: !!onMarkAsPaid,
+                                canMarkAsPaid,
+                                paymentID: payment.paymentID,
+                                status: payment.status,
+                                userRole
+                            });
+                        }
+                    }}
+                    disabled={!canMarkAsPaid}
+                    style={{ 
+                        padding: '8px 16px',
+                        backgroundColor: canMarkAsPaid ? '#28a745' : '#ccc',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: canMarkAsPaid ? 'pointer' : 'not-allowed',
+                        opacity: canMarkAsPaid ? 1 : 0.6,
+                        minWidth: '120px'
+                    }}
+                    title={!canMarkAsPaid ? `Cannot mark: Role=${userRole}, Status=${payment.status || 'N/A'}, ID=${payment.paymentID || 'N/A'}` : 'Mark as Paid'}
+                >
+                    {canMarkAsPaid ? 'Mark Paid' : `Disabled (${userRole || '?'})`}
+                </button>
+            </td>
         </tr>
     );
 };

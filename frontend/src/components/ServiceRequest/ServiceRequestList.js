@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { serviceRequestService } from '../../services/serviceRequestService';
+import { paymentService } from '../../services/paymentService';
 import EditServiceRequest from './EditServiceRequest';
 import ReviewSubmission from '../Reviews/ReviewSubmission';
 import { SERVICE_CATEGORIES, CATEGORY_COLORS } from '../../utils/categories';
@@ -316,6 +317,23 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat, refreshTrigger
         }
     };
 
+    const handleMarkPaymentAsPaid = async (paymentID, paymentMethod = null) => {
+        if (!window.confirm('Mark this payment as paid?')) {
+            return;
+        }
+
+        try {
+            setError(null);
+            await paymentService.markAsPaid(paymentID, paymentMethod);
+            setSuccess('Payment marked as paid successfully!');
+            loadRequests(); // Refresh the list to show updated payment status
+        } catch (err) {
+            const errorMessage = err.response?.data?.error?.message || err.message || 'Failed to mark payment as paid';
+            setError(errorMessage);
+            console.error('Error marking payment as paid:', err);
+        }
+    };
+
     const formatDate = (dateString) => {
         if (!dateString) return 'Not specified';
         const date = new Date(dateString);
@@ -570,6 +588,27 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat, refreshTrigger
                                             </span>
                                         </div>
                                     )}
+                                    {request.paymentID && (
+                                        <div className="detail-item">
+                                            <span className="detail-label">Payment:</span>
+                                            <span className="detail-value" style={{ 
+                                                color: request.paymentStatus === 'Paid' ? '#2e7d32' : 
+                                                       request.paymentStatus === 'Overdue' ? '#d32f2f' : '#f57c00'
+                                            }}>
+                                                {request.paymentStatus || 'Pending'} - ${request.paymentAmount || '0.00'}
+                                                {request.paymentDate && request.paymentStatus === 'Paid' && (
+                                                    <span style={{ fontSize: '0.85em', marginLeft: '8px', color: '#2e7d32' }}>
+                                                        (Paid: {formatDate(request.paymentDate)})
+                                                    </span>
+                                                )}
+                                                {request.paymentStatus === 'Overdue' && (
+                                                    <span style={{ fontSize: '0.85em', marginLeft: '8px', color: '#d32f2f' }}>
+                                                        (Overdue)
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -606,6 +645,7 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat, refreshTrigger
                                 )}
                                 {userRole === 'Customer' && request.status === 'Completed' && request.hasReview && (
                                     <span className="review-submitted-badge">✓ Review Submitted</span>
+                                )}
                                 {userRole === 'Customer' && 
                                  request.status !== 'Pending' && 
                                  request.status !== 'Cancelled' && 
@@ -674,6 +714,18 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat, refreshTrigger
                                             💬 Message Customer
                                         </button>
                                     </>
+                                )}
+                                {userRole === 'Provider' && 
+                                 request.paymentID && 
+                                 request.paymentStatus !== 'Paid' && 
+                                 request.status === 'Completed' && (
+                                    <button
+                                        onClick={() => handleMarkPaymentAsPaid(request.paymentID)}
+                                        className="btn-pay"
+                                        style={{ backgroundColor: '#2e7d32', color: 'white' }}
+                                    >
+                                        💰 Mark Payment as Paid
+                                    </button>
                                 )}
                                 {userRole === 'Provider' && 
                                  request.status !== 'Pending' && 

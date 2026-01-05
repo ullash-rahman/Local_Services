@@ -415,30 +415,7 @@ const acceptServiceRequest = async (req, res) => {
             });
         }
 
-        // Auto-create Payment record for this service request
-        let paymentCreated = null;
-        try {
-            // Default amount if not provided (can be updated later)
-            const paymentAmount = amount || 0;
-            
-            // Calculate due date (7 days from now)
-            const dueDate = new Date();
-            dueDate.setDate(dueDate.getDate() + 7);
-            
-            const paymentID = await Payment.create({
-                requestID: parseInt(requestID),
-                amount: paymentAmount,
-                dueDate: dueDate,
-                status: 'Pending'
-            });
-            
-            paymentCreated = { paymentID, amount: paymentAmount, status: 'Pending', dueDate };
-            console.log('Payment auto-created for request:', requestID, 'Payment ID:', paymentID);
-        } catch (paymentError) {
-            console.error('Error auto-creating payment:', paymentError);
-            // Don't fail the accept if payment creation fails
-        }
-
+        // Payment will be created when service is completed, not when accepted
         // Get updated request
         const updatedRequest = await ServiceRequest.findById(requestID);
 
@@ -480,10 +457,7 @@ const acceptServiceRequest = async (req, res) => {
         res.status(200).json({
             success: true,
             message: 'Service request accepted successfully',
-            data: { 
-                request: updatedRequest,
-                payment: paymentCreated
-            }
+            data: { request: updatedRequest }
         });
     } catch (error) {
         console.error('Accept service request error:', error);
@@ -541,7 +515,6 @@ const rejectServiceRequest = async (req, res) => {
 };
 
 // Complete service request (Provider only)
-const completeServiceRequest = async (req, res) => {
 // Cancel service request (Customer only) - with cancellation reason
 const cancelServiceRequest = async (req, res) => {
     try {
@@ -668,22 +641,6 @@ const markServiceAsCompleted = async (req, res) => {
             });
         }
 
-        // Update status to Completed
-        const completed = await ServiceRequest.updateStatus(requestID, 'Completed');
-        if (request.providerID !== providerID) {
-            return res.status(403).json({
-                success: false,
-                message: 'You do not have permission to mark this service as completed'
-            });
-        }
-
-        if (request.status !== 'Accepted' && request.status !== 'Ongoing') {
-            return res.status(400).json({
-                success: false,
-                message: 'Service request must be in Accepted or Ongoing status to mark as completed'
-            });
-        }
-
         // Mark as completed
         const completed = await ServiceRequest.markAsCompleted(requestID, providerID);
 
@@ -703,14 +660,6 @@ const markServiceAsCompleted = async (req, res) => {
         } catch (integrationError) {
             console.error('Error in IntegrationService.onServiceCompleted:', integrationError);
             // Don't fail the request if integration fails - the core operation succeeded
-        }
-
-        // Get updated request
-        const updatedRequest = await ServiceRequest.findById(requestID);
-
-        // Create notification for customer to leave a review (legacy - IntegrationService also handles this)
-                message: 'Failed to mark service as completed'
-            });
         }
 
         // Create or update ServiceCompletion record
@@ -753,8 +702,6 @@ const markServiceAsCompleted = async (req, res) => {
             // Continue even if job history creation fails
         }
 
-        const updatedRequest = await ServiceRequest.findById(requestID);
-
         // Create notification for customer
         try {
             const Notification = require('../models/Notification');
@@ -762,17 +709,6 @@ const markServiceAsCompleted = async (req, res) => {
             const provider = await User.findById(providerID);
             
             if (provider) {
-                await Notification.create({
-                    userID: request.customerID,
-                    requestID: requestID,
-                    message: `${provider.name} has completed your ${request.category} service. Please leave a review!`,
-                    notificationType: 'service_completed'
-                });
-
-                // Emit notification via Socket.io
-                if (global.io) {
-                    global.io.to(`user_${request.customerID}`).emit('new_notification', {
-                        message: `Your ${request.category} service has been completed. Please leave a review!`,
                 const notification = await Notification.create({
                     userID: request.customerID,
                     requestID: requestID,
@@ -815,14 +751,6 @@ const markServiceAsCompleted = async (req, res) => {
                 request: updatedRequest,
                 integration: integrationResults
             }
-        });
-    } catch (error) {
-        console.error('Complete service request error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error while completing service request',
-            message: 'Service marked as completed successfully',
-            data: { request: updatedRequest }
         });
     } catch (error) {
         console.error('Mark service as completed error:', error);
@@ -1043,6 +971,7 @@ const startService = async (req, res) => {
             });
         }
 
+        // Payment will be created when service is completed, not when started
         const updatedRequest = await ServiceRequest.findById(requestID);
 
         // Create notification for customer
@@ -1112,7 +1041,6 @@ module.exports = {
     getServiceRequestsByCategory,
     acceptServiceRequest,
     rejectServiceRequest,
-    completeServiceRequest
     cancelServiceRequest,
     startService,
     markServiceAsCompleted,

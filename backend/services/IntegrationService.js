@@ -176,7 +176,7 @@ class IntegrationService {
             SELECT COALESCE(SUM(p.amount), 0) as totalEarnings
             FROM Payment p
             JOIN ServiceRequest sr ON p.requestID = sr.requestID
-            WHERE sr.providerID = ? AND p.status IN ('Paid', 'Completed')
+            WHERE sr.providerID = ? AND p.status = 'Paid'
         `;
         const [rows] = await pool.execute(query, [providerID]);
         const totalEarnings = parseFloat(rows[0].totalEarnings) || 0;
@@ -591,15 +591,12 @@ class IntegrationService {
                 if (!existingPayment) {
                     // Calculate default amount based on service category or use a default
                     const defaultAmount = await this.getDefaultServiceAmount(request.category);
-                    
-                    // Set due date to 7 days from now
-                    const dueDate = new Date();
-                    dueDate.setDate(dueDate.getDate() + 7);
 
+                    // Create payment when service is completed
+                    // Payment status starts as 'Pending', can be updated to 'Paid' or 'Overdue'
                     const paymentID = await Payment.create({
                         requestID,
                         amount: defaultAmount,
-                        dueDate: dueDate.toISOString().split('T')[0],
                         status: 'Pending'
                     });
 
@@ -689,7 +686,7 @@ class IntegrationService {
                 SELECT AVG(p.amount) as avgAmount
                 FROM Payment p
                 JOIN ServiceRequest sr ON p.requestID = sr.requestID
-                WHERE sr.category = ? AND p.status IN ('Paid', 'Completed')
+                WHERE sr.category = ? AND p.status = 'Paid'
             `;
             const [rows] = await pool.execute(query, [category]);
             const avgAmount = parseFloat(rows[0].avgAmount);

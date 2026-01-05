@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { historyService } from '../../services/historyService';
 import { authService } from '../../services/authService';
 import './JobHistory.css';
@@ -61,9 +62,14 @@ const JobHistory = () => {
     const user = authService.getCurrentUser();
     const isCustomer = user?.role === 'Customer';
 
+    const dashboardPath = isCustomer ? '/dashboard/customer' : '/dashboard/provider';
+
     return (
         <div className="job-history-container">
             <div className="job-history-header">
+                <Link to={dashboardPath} className="back-link" style={{ marginBottom: '10px', display: 'inline-block' }}>
+                    ← Back to Dashboard
+                </Link>
                 <h2>Job History</h2>
                 <p className="header-description">View your completed service jobs and track your service history</p>
             </div>

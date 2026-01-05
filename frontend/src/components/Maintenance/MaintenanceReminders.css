@@ -13,6 +13,20 @@
     margin-bottom: 24px;
 }
 
+.back-link {
+    color: #5a9fd4;
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.3s;
+    display: inline-block;
+    margin-bottom: 10px;
+}
+
+.back-link:hover {
+    color: #4a8bc2;
+    text-decoration: underline;
+}
+
 .maintenance-header h2 {
     margin: 0 0 8px 0;
     font-size: 28px;

@@ -275,14 +275,26 @@ export const paymentService = {
         const queryString = params.toString();
         const url = `/payments/customer/${customerId}${queryString ? `?${queryString}` : ''}`;
         
+        console.log('getPaymentsByCustomer - Calling URL:', url);
+        console.log('getPaymentsByCustomer - Customer ID:', customerId);
+        console.log('getPaymentsByCustomer - Full URL will be:', `http://localhost:5001/api${url}`);
+        
         try {
             const response = await api.get(url);
+            console.log('getPaymentsByCustomer - Response:', response.data);
             if (response.data && response.data.success) {
-                return response.data.data;
+                return response.data.data || [];
             }
             throw new Error(response.data?.error?.message || 'Failed to fetch customer payments');
         } catch (error) {
-            console.error('getPaymentsByCustomer error:', error.response?.data || error.message);
+            console.error('getPaymentsByCustomer error:', {
+                message: error.message,
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                url: error.config?.url,
+                fullUrl: error.config?.baseURL + error.config?.url
+            });
             throw error;
         }
     },

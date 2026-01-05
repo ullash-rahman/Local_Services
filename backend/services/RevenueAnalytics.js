@@ -46,7 +46,7 @@ class RevenueAnalytics {
                     FROM Payment p
                     JOIN ServiceRequest sr ON p.requestID = sr.requestID
                     WHERE sr.providerID = ?
-                        AND p.status = 'Completed'
+                        AND p.status = 'Paid'
                         AND p.paymentDate >= DATE_SUB(NOW(), INTERVAL ${interval})
                 `;
 
@@ -56,7 +56,7 @@ class RevenueAnalytics {
                     FROM Payment p
                     JOIN ServiceRequest sr ON p.requestID = sr.requestID
                     WHERE sr.providerID = ?
-                        AND p.status = 'Completed'
+                        AND p.status = 'Paid'
                         AND p.paymentDate >= DATE_SUB(NOW(), INTERVAL ${days * 2} DAY)
                         AND p.paymentDate < DATE_SUB(NOW(), INTERVAL ${interval})
                 `;
@@ -67,7 +67,7 @@ class RevenueAnalytics {
                     FROM Payment p
                     JOIN ServiceRequest sr ON p.requestID = sr.requestID
                     WHERE sr.providerID = ?
-                        AND p.status = 'Completed'
+                        AND p.status = 'Paid'
                 `;
                 previousPeriodQuery = null;
             }
@@ -131,7 +131,7 @@ class RevenueAnalytics {
                 FROM Payment p
                 JOIN ServiceRequest sr ON p.requestID = sr.requestID
                 WHERE sr.providerID = ?
-                    AND p.status = 'Completed'
+                    AND p.status = 'Paid'
                     ${dateCondition}
                 GROUP BY sr.category
                 ORDER BY categoryEarnings DESC
@@ -179,7 +179,7 @@ class RevenueAnalytics {
                 FROM Payment p
                 JOIN ServiceRequest sr ON p.requestID = sr.requestID
                 WHERE sr.providerID = ?
-                    AND p.status = 'Completed'
+                    AND p.status = 'Paid'
             `;
 
             const [rows] = await pool.execute(query, [providerID]);
@@ -240,7 +240,7 @@ class RevenueAnalytics {
                 FROM Payment p
                 JOIN ServiceRequest sr ON p.requestID = sr.requestID
                 WHERE sr.providerID = ?
-                    AND p.status = 'Completed'
+                    AND p.status = 'Paid'
                     ${dateCondition}
                 GROUP BY ${groupBy}
                 ORDER BY periodLabel ASC
@@ -308,24 +308,34 @@ class RevenueAnalytics {
 
             const [rows] = await pool.execute(query, [providerID]);
 
-            // Initialize status breakdown
+            // Initialize status breakdown - Payment statuses: Pending, Paid, Overdue
             const statusBreakdown = {
                 pending: { amount: 0, count: 0 },
-                completed: { amount: 0, count: 0 },
-                failed: { amount: 0, count: 0 },
-                refunded: { amount: 0, count: 0 }
+                paid: { amount: 0, count: 0 },
+                overdue: { amount: 0, count: 0 },
+                // Legacy support for 'Completed' status (map to 'paid')
+                completed: { amount: 0, count: 0 }
             };
 
             // Fill in actual values
             rows.forEach(row => {
                 const status = row.status.toLowerCase();
-                if (statusBreakdown[status] !== undefined) {
-                    statusBreakdown[status] = {
+                // Map 'Completed' to 'paid' for backward compatibility
+                const mappedStatus = status === 'completed' ? 'paid' : status;
+                if (statusBreakdown[mappedStatus] !== undefined) {
+                    statusBreakdown[mappedStatus] = {
                         amount: parseFloat(row.totalAmount),
                         count: parseInt(row.paymentCount, 10)
                     };
                 }
             });
+            
+            // Merge completed into paid if both exist
+            if (statusBreakdown.completed.count > 0) {
+                statusBreakdown.paid.amount += statusBreakdown.completed.amount;
+                statusBreakdown.paid.count += statusBreakdown.completed.count;
+                statusBreakdown.completed = { amount: 0, count: 0 };
+            }
 
             // Calculate totals
             const totalAmount = Object.values(statusBreakdown).reduce((sum, s) => sum + s.amount, 0);
@@ -392,7 +402,7 @@ class RevenueAnalytics {
                 FROM Payment p
                 JOIN ServiceRequest sr ON p.requestID = sr.requestID
                 WHERE sr.providerID = ?
-                    AND p.status = 'Completed'
+                    AND p.status = 'Paid'
                     AND p.paymentDate >= DATE_SUB(NOW(), INTERVAL ? MONTH)
                 GROUP BY DATE_FORMAT(p.paymentDate, '%Y-%m'), DATE_FORMAT(p.paymentDate, '%b %Y')
                 ORDER BY month ASC

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { maintenanceService } from '../../services/maintenanceService';
 import './MaintenanceReminders.css';
 
@@ -155,6 +156,9 @@ const MaintenanceReminders = () => {
         <div className="maintenance-reminders-container">
             <div className="maintenance-header">
                 <div>
+                    <Link to="/dashboard/customer" className="back-link" style={{ marginBottom: '10px', display: 'inline-block' }}>
+                        ← Back to Dashboard
+                    </Link>
                     <h2>Maintenance Reminders</h2>
                     <p className="header-description">Track and manage your recurring service reminders</p>
                 </div>

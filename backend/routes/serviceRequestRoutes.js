@@ -11,7 +11,6 @@ const {
     getServiceRequestsByCategory,
     acceptServiceRequest,
     rejectServiceRequest,
-    completeServiceRequest
     cancelServiceRequest,
     startService,
     markServiceAsCompleted,
@@ -33,8 +32,6 @@ router.post('/:requestID/accept', authenticate, authorize('Provider'), acceptSer
 // Reject service request (Provider only) - MUST come before /:requestID route
 router.post('/:requestID/reject', authenticate, authorize('Provider'), rejectServiceRequest);
 
-// Complete service request (Provider only) - marks service as completed
-router.post('/:requestID/complete', authenticate, authorize('Provider'), completeServiceRequest);
 // Cancel service request (Customer only) - MUST come before /:requestID route
 router.post('/:requestID/cancel', authenticate, authorize('Customer'), cancelServiceRequest);
 

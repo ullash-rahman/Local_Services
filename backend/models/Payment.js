@@ -12,11 +12,12 @@ class Payment {
      */
     static async create(paymentData) {
         const { requestID, amount, dueDate, status = 'Pending' } = paymentData;
+        // Note: dueDate column doesn't exist in Payment table, so we skip it
         const query = `
-            INSERT INTO Payment (requestID, amount, status, dueDate)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO Payment (requestID, amount, status)
+            VALUES (?, ?, ?)
         `;
-        const [result] = await pool.execute(query, [requestID, amount, status, dueDate]);
+        const [result] = await pool.execute(query, [requestID, amount, status]);
         return result.insertId;
     }
 
@@ -69,8 +70,17 @@ class Payment {
         
         let query = `
             SELECT 
-                p.*,
+                p.paymentID,
+                p.requestID,
+                p.amount,
+                p.status,
+                p.paymentDate,
+                p.paymentMethod,
+                p.transactionID,
+                p.createdAt,
+                p.updatedAt,
                 sr.customerID,
+                sr.providerID,
                 sr.category,
                 sr.description,
                 sr.status as requestStatus,
@@ -128,50 +138,55 @@ class Payment {
      * @returns {Promise<Array>} - Array of payment records
      */
     static async findByCustomer(customerID, filters = {}) {
-        const { status, startDate, endDate, sortBy = 'createdAt', sortOrder = 'DESC' } = filters;
-        
-        let query = `
-            SELECT 
-                p.*,
-                sr.providerID,
-                sr.category,
-                sr.description,
-                sr.status as requestStatus,
-                sr.serviceDate,
-                pr.name as providerName,
-                pr.email as providerEmail,
-                pr.phone as providerPhone
-            FROM Payment p
-            INNER JOIN ServiceRequest sr ON p.requestID = sr.requestID
-            LEFT JOIN USER pr ON sr.providerID = pr.userID
-            WHERE sr.customerID = ?
-        `;
-        const params = [customerID];
+        try {
+            const { status, startDate, endDate, sortBy = 'createdAt', sortOrder = 'DESC' } = filters;
+            
+            let query = `
+                SELECT 
+                    p.*,
+                    sr.providerID,
+                    sr.category,
+                    sr.description,
+                    sr.status as requestStatus,
+                    sr.serviceDate,
+                    pr.name as providerName,
+                    pr.email as providerEmail,
+                    pr.phone as providerPhone
+                FROM Payment p
+                INNER JOIN ServiceRequest sr ON p.requestID = sr.requestID
+                LEFT JOIN USER pr ON sr.providerID = pr.userID
+                WHERE sr.customerID = ?
+            `;
+            const params = [customerID];
 
-        if (status) {
-            query += ' AND p.status = ?';
-            params.push(status);
+            if (status) {
+                query += ' AND p.status = ?';
+                params.push(status);
+            }
+
+            if (startDate) {
+                query += ' AND p.createdAt >= ?';
+                params.push(startDate);
+            }
+
+            if (endDate) {
+                query += ' AND p.createdAt <= ?';
+                params.push(endDate);
+            }
+
+            // Validate sortBy to prevent SQL injection
+            const allowedSortFields = ['createdAt', 'amount', 'status', 'dueDate', 'paymentDate'];
+            const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+            const safeSortOrder = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+            query += ` ORDER BY p.${safeSortBy} ${safeSortOrder}`;
+
+            const [rows] = await pool.execute(query, params);
+            return rows || [];
+        } catch (error) {
+            console.error('Error in Payment.findByCustomer:', error);
+            throw error;
         }
-
-        if (startDate) {
-            query += ' AND p.createdAt >= ?';
-            params.push(startDate);
-        }
-
-        if (endDate) {
-            query += ' AND p.createdAt <= ?';
-            params.push(endDate);
-        }
-
-        // Validate sortBy to prevent SQL injection
-        const allowedSortFields = ['createdAt', 'amount', 'status', 'dueDate', 'paymentDate'];
-        const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
-        const safeSortOrder = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
-
-        query += ` ORDER BY p.${safeSortBy} ${safeSortOrder}`;
-
-        const [rows] = await pool.execute(query, params);
-        return rows;
     }
 
 
@@ -188,7 +203,8 @@ class Payment {
      * @returns {Promise<Object|undefined>} - Updated payment record
      */
     static async update(paymentID, updateData) {
-        const { amount, status, dueDate, paymentDate, paymentMethod, transactionID } = updateData;
+        const { amount, status, paymentDate, paymentMethod, transactionID } = updateData;
+        // Note: dueDate column doesn't exist in Payment table, so we skip it
         
         const updates = [];
         const params = [];
@@ -201,10 +217,7 @@ class Payment {
             updates.push('status = ?');
             params.push(status);
         }
-        if (dueDate !== undefined) {
-            updates.push('dueDate = ?');
-            params.push(dueDate);
-        }
+        // Skip dueDate - column doesn't exist in Payment table
         if (paymentDate !== undefined) {
             updates.push('paymentDate = ?');
             params.push(paymentDate);
@@ -288,7 +301,9 @@ class Payment {
             INNER JOIN ServiceRequest sr ON p.requestID = sr.requestID
             INNER JOIN USER c ON sr.customerID = c.userID
             LEFT JOIN USER pr ON sr.providerID = pr.userID
-            WHERE p.status = 'Pending' AND p.dueDate < CURDATE()
+            WHERE p.status = 'Pending'
+                AND p.paymentDate IS NULL
+                AND DATE_ADD(p.createdAt, INTERVAL 7 DAY) < CURDATE()
         `;
         const params = [];
 
@@ -297,7 +312,7 @@ class Payment {
             params.push(providerID);
         }
 
-        query += ' ORDER BY p.dueDate ASC';
+        query += ' ORDER BY p.createdAt ASC';
 
         const [rows] = await pool.execute(query, params);
         return rows;

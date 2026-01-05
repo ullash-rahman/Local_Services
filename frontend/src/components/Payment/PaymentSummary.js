@@ -23,7 +23,10 @@ const PaymentSummary = ({
      * Fetch payment summary from API
      */
     const fetchSummary = useCallback(async () => {
-        if (!providerId) return;
+        if (!providerId) {
+            setIsLoading(false);
+            return;
+        }
         
         setIsLoading(true);
         setError(null);
@@ -36,7 +39,8 @@ const PaymentSummary = ({
             }
         } catch (err) {
             console.error('Error fetching payment summary:', err);
-            setError('Failed to load payment summary');
+            const errorMessage = err.response?.data?.error?.message || err.message || 'Failed to load payment summary';
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }

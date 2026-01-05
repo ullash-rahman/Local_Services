@@ -53,7 +53,13 @@ class PaymentStatusService {
             throw new ValidationError(`Invalid status filter: ${filters.status}`);
         }
 
-        return await Payment.findByCustomer(customerId, filters);
+        try {
+            const payments = await Payment.findByCustomer(customerId, filters);
+            return payments || [];
+        } catch (error) {
+            console.error('Error in PaymentStatusService.getPaymentsByCustomer:', error);
+            throw error;
+        }
     }
 
     /**

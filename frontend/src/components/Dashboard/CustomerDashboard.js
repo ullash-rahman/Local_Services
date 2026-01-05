@@ -117,6 +117,7 @@ const CustomerDashboard = () => {
                         </Link>
                         <Link to="/gamification" className="nav-link">
                             Leaderboard
+                        </Link>
                         <Link to="/dashboard/customer/history" className="nav-link">
                             Job History
                         </Link>

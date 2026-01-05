@@ -17,6 +17,13 @@ const PaymentCenter = () => {
     const user = authService.getCurrentUser();
     const userId = user?.userID;
     const userRole = user?.role;
+    
+    // Debug logging
+    console.log('PaymentCenter - User Info:', {
+        userId,
+        userRole,
+        user: user
+    });
 
     // State for refresh trigger
     const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -103,6 +110,13 @@ const PaymentCenter = () => {
 
     return (
         <div className="payment-center">
+            {/* Show authentication message if user is not authenticated */}
+            {(!user || !userId) ? (
+                <div className="payment-center-error">
+                    <p>Please log in to view payments.</p>
+                </div>
+            ) : (
+                <>
             {/* Header */}
             <div className="payment-center-header">
                 <div className="header-title">
@@ -253,6 +267,8 @@ const PaymentCenter = () => {
                         </div>
                     </div>
                 </div>
+            )}
+                </>
             )}
         </div>
     );

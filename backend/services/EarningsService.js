@@ -135,7 +135,7 @@ class EarningsService {
             FROM Payment p
             JOIN ServiceRequest sr ON p.requestID = sr.requestID
             WHERE sr.providerID = ?
-                AND p.status IN ('Paid', 'Completed')
+                AND p.status = 'Paid'
                 AND DATE(p.paymentDate) = ?
         `;
 
@@ -148,7 +148,7 @@ class EarningsService {
             FROM Payment p
             JOIN ServiceRequest sr ON p.requestID = sr.requestID
             WHERE sr.providerID = ?
-                AND p.status IN ('Paid', 'Completed')
+                AND p.status = 'Paid'
                 AND DATE(p.paymentDate) = ?
             GROUP BY sr.category
             ORDER BY earnings DESC
@@ -231,7 +231,7 @@ class EarningsService {
                 FROM Payment p
                 JOIN ServiceRequest sr ON p.requestID = sr.requestID
                 WHERE sr.providerID = ?
-                    AND p.status IN ('Paid', 'Completed')
+                    AND p.status = 'Paid'
                     AND DATE(p.paymentDate) >= ?
                     AND DATE(p.paymentDate) <= ?
                     ${categoryCondition}
@@ -312,7 +312,7 @@ class EarningsService {
                 FROM Payment p
                 JOIN ServiceRequest sr ON p.requestID = sr.requestID
                 WHERE sr.providerID = ?
-                    AND p.status IN ('Paid', 'Completed')
+                    AND p.status = 'Paid'
                     AND DATE(p.paymentDate) >= ?
                     AND DATE(p.paymentDate) <= ?
                     ${categoryCondition}
@@ -327,7 +327,7 @@ class EarningsService {
                 FROM Payment p
                 JOIN ServiceRequest sr ON p.requestID = sr.requestID
                 WHERE sr.providerID = ?
-                    AND p.status IN ('Paid', 'Completed')
+                    AND p.status = 'Paid'
                     AND DATE(p.paymentDate) >= ?
                     AND DATE(p.paymentDate) <= ?
                     ${categoryCondition}
@@ -344,7 +344,7 @@ class EarningsService {
                 FROM Payment p
                 JOIN ServiceRequest sr ON p.requestID = sr.requestID
                 WHERE sr.providerID = ?
-                    AND p.status IN ('Paid', 'Completed')
+                    AND p.status = 'Paid'
                     AND DATE(p.paymentDate) >= ?
                     AND DATE(p.paymentDate) <= ?
                     ${categoryCondition}
@@ -489,7 +489,7 @@ class EarningsService {
             FROM Payment p
             JOIN ServiceRequest sr ON p.requestID = sr.requestID
             WHERE sr.providerID = ?
-                AND p.status IN ('Paid', 'Completed')
+                AND p.status = 'Paid'
                 AND DATE(p.paymentDate) >= ?
                 AND DATE(p.paymentDate) <= ?
                 ${categoryCondition}

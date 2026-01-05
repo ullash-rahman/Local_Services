@@ -42,9 +42,9 @@ class RealTimeAnalytics {
             // Get today's earnings
             const earningsQuery = `
                 SELECT 
-                    COALESCE(SUM(CASE WHEN p.status = 'Completed' THEN p.amount ELSE 0 END), 0) as completedEarnings,
+                    COALESCE(SUM(CASE WHEN p.status = 'Paid' THEN p.amount ELSE 0 END), 0) as completedEarnings,
                     COALESCE(SUM(CASE WHEN p.status = 'Pending' THEN p.amount ELSE 0 END), 0) as pendingEarnings,
-                    COUNT(CASE WHEN p.status = 'Completed' THEN 1 END) as completedPayments,
+                    COUNT(CASE WHEN p.status = 'Paid' THEN 1 END) as completedPayments,
                     COUNT(CASE WHEN p.status = 'Pending' THEN 1 END) as pendingPayments
                 FROM Payment p
                 JOIN ServiceRequest sr ON p.requestID = sr.requestID
@@ -95,7 +95,7 @@ class RealTimeAnalytics {
                 FROM Payment p
                 JOIN ServiceRequest sr ON p.requestID = sr.requestID
                 WHERE sr.providerID = ?
-                    AND p.status = 'Completed'
+                    AND p.status = 'Paid'
                     AND DATE(p.createdAt) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
             `;
 
@@ -424,7 +424,7 @@ class RealTimeAnalytics {
                 FROM Payment p
                 JOIN ServiceRequest sr ON p.requestID = sr.requestID
                 WHERE sr.providerID = ?
-                    AND p.status = 'Completed'
+                    AND p.status = 'Paid'
                     AND DATE(p.createdAt) = CURDATE()
             `;
 
@@ -698,7 +698,7 @@ class RealTimeAnalytics {
                 JOIN ServiceRequest sr ON p.requestID = sr.requestID
                 JOIN USER u ON sr.customerID = u.userID
                 WHERE sr.providerID = ?
-                    AND p.status = 'Completed'
+                    AND p.status = 'Paid'
                 ORDER BY p.paymentDate DESC
                 LIMIT ?
             `;
