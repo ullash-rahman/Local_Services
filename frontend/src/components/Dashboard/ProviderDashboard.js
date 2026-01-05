@@ -20,6 +20,7 @@ const ProviderDashboard = () => {
     const [showComplaintSubmission, setShowComplaintSubmission] = useState(false);
     const [complaintView, setComplaintView] = useState(null);
     const [refreshingAnalytics, setRefreshingAnalytics] = useState(false);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     useEffect(() => {
         // Check authentication
@@ -58,6 +59,8 @@ const ProviderDashboard = () => {
             if (response.success) {
                 setDashboardData(response.data);
             }
+            // Trigger refresh of service request list
+            setRefreshTrigger(prev => prev + 1);
         } catch (error) {
             console.error('Error loading dashboard:', error);
         } finally {
@@ -144,6 +147,9 @@ const ProviderDashboard = () => {
                             <Link to="/dashboard/provider/availability" className="nav-link">
                                 Availability Calendar
                             </Link>
+                            <Link to="/dashboard/provider/history" className="nav-link">
+                                Job History
+                            </Link>
                             <Link to="/gamification" className="nav-link">
                                 Gamification
                             </Link>
@@ -178,6 +184,7 @@ const ProviderDashboard = () => {
                         <ServiceRequestList 
                             userRole="Provider" 
                             onStartChat={(conversation) => setSelectedChatConversation(conversation)}
+                            refreshTrigger={refreshTrigger}
                         />
                     </div>
 

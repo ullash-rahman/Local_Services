@@ -7,7 +7,8 @@ const CreateServiceRequest = ({ onSuccess, onCancel }) => {
     const [formData, setFormData] = useState({
         category: '',
         description: '',
-        serviceDate: ''
+        serviceDate: '',
+        priorityLevel: 'Normal'
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -58,11 +59,18 @@ const CreateServiceRequest = ({ onSuccess, onCancel }) => {
                 }
             }
 
-            const response = await serviceRequestService.createServiceRequest({
+            const requestPayload = {
                 category: formData.category,
                 description: formData.description.trim(),
-                serviceDate: formData.serviceDate || null
-            });
+                serviceDate: formData.serviceDate || null,
+                priorityLevel: formData.priorityLevel
+            };
+            
+            console.log('CreateServiceRequest - Sending payload:', requestPayload);
+            console.log('CreateServiceRequest - priorityLevel value:', formData.priorityLevel);
+            console.log('CreateServiceRequest - priorityLevel type:', typeof formData.priorityLevel);
+            
+            const response = await serviceRequestService.createServiceRequest(requestPayload);
 
             if (response.success) {
                 setSuccess(true);
@@ -70,7 +78,8 @@ const CreateServiceRequest = ({ onSuccess, onCancel }) => {
                 setFormData({
                     category: '',
                     description: '',
-                    serviceDate: ''
+                    serviceDate: '',
+                    priorityLevel: 'Normal'
                 });
                 
                 // Call onSuccess callback after a short delay
@@ -164,6 +173,24 @@ const CreateServiceRequest = ({ onSuccess, onCancel }) => {
                         />
                         <small className="form-help">
                             Leave empty if you don't have a preferred date
+                        </small>
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="priorityLevel">Priority Level 🚨</label>
+                        <select
+                            id="priorityLevel"
+                            name="priorityLevel"
+                            value={formData.priorityLevel}
+                            onChange={handleInputChange}
+                            className="form-select"
+                        >
+                            <option value="Normal">Normal</option>
+                            <option value="High">High</option>
+                            <option value="Emergency">Emergency 🚨</option>
+                        </select>
+                        <small className="form-help">
+                            Select Emergency for urgent service requests that need immediate attention
                         </small>
                     </div>
 

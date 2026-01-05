@@ -7,7 +7,8 @@ const EditServiceRequest = ({ request, onSuccess, onCancel }) => {
     const [formData, setFormData] = useState({
         category: request.category || '',
         description: request.description || '',
-        serviceDate: request.serviceDate ? request.serviceDate.split('T')[0] : ''
+        serviceDate: request.serviceDate ? request.serviceDate.split('T')[0] : '',
+        priorityLevel: request.priorityLevel || 'Normal'
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -59,7 +60,8 @@ const EditServiceRequest = ({ request, onSuccess, onCancel }) => {
             const response = await serviceRequestService.updateServiceRequest(request.requestID, {
                 category: formData.category,
                 description: formData.description.trim(),
-                serviceDate: formData.serviceDate || null
+                serviceDate: formData.serviceDate || null,
+                priorityLevel: formData.priorityLevel
             });
 
             if (response.success) {
@@ -138,6 +140,24 @@ const EditServiceRequest = ({ request, onSuccess, onCancel }) => {
                         />
                         <small className="form-help">
                             Leave empty if you don't have a preferred date
+                        </small>
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="priorityLevel">Priority Level 🚨</label>
+                        <select
+                            id="priorityLevel"
+                            name="priorityLevel"
+                            value={formData.priorityLevel}
+                            onChange={handleInputChange}
+                            className="form-select"
+                        >
+                            <option value="Normal">Normal</option>
+                            <option value="High">High</option>
+                            <option value="Emergency">Emergency 🚨</option>
+                        </select>
+                        <small className="form-help">
+                            Select Emergency for urgent service requests that need immediate attention
                         </small>
                     </div>
 

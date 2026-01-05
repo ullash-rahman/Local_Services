@@ -14,6 +14,8 @@ import PaymentCenter from './components/Payment/PaymentCenter';
 import ProviderManualBookingsPage from './components/Booking/ProviderManualBookingsPage';
 import ManualBookingPage from './components/Booking/ManualBookingPage';
 import ProviderAvailabilityCalendarPage from './components/Booking/ProviderAvailabilityCalendarPage';
+import JobHistoryPage from './components/History/JobHistoryPage';
+import MaintenanceRemindersPage from './components/Maintenance/MaintenanceRemindersPage';
 import './App.css';
 
 // Protected Route Component
@@ -135,6 +137,30 @@ function App() {
                         element={
                             <ProtectedRoute allowedRoles={['Provider']}>
                                 <ProviderAvailabilityCalendarPage />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/dashboard/customer/history"
+                        element={
+                            <ProtectedRoute allowedRoles={['Customer']}>
+                                <JobHistoryPage />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/dashboard/provider/history"
+                        element={
+                            <ProtectedRoute allowedRoles={['Provider']}>
+                                <JobHistoryPage />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/dashboard/customer/maintenance"
+                        element={
+                            <ProtectedRoute allowedRoles={['Customer']}>
+                                <MaintenanceRemindersPage />
                             </ProtectedRoute>
                         }
                     />
