@@ -20,6 +20,7 @@ const CustomerDashboard = () => {
     const [selectedChatConversation, setSelectedChatConversation] = useState(null);
     const [showComplaintSubmission, setShowComplaintSubmission] = useState(false);
     const [complaintView, setComplaintView] = useState(null); // 'my-complaints' or 'against-me'
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     useEffect(() => {
         // Check authentication
@@ -111,6 +112,12 @@ const CustomerDashboard = () => {
                         <Link to="/dashboard/customer/manual-bookings" className="nav-link">
                             Manual Bookings
                         </Link>
+                        <Link to="/dashboard/customer/history" className="nav-link">
+                            Job History
+                        </Link>
+                        <Link to="/dashboard/customer/maintenance" className="nav-link">
+                            Maintenance Reminders
+                        </Link>
                     </div>
                     <div className="welcome-section">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -147,6 +154,8 @@ const CustomerDashboard = () => {
                                     setShowCreateRequest(false);
                                     // Reload dashboard data to update stats
                                     loadDashboardData();
+                                    // Trigger refresh of service request list
+                                    setRefreshTrigger(prev => prev + 1);
                                 }}
                                 onCancel={() => setShowCreateRequest(false)}
                             />
@@ -155,7 +164,7 @@ const CustomerDashboard = () => {
 
                     {!showCreateRequest && !showComplaintSubmission && complaintView === null && (
                         <div style={{ marginBottom: '30px' }}>
-                            <ServiceRequestList userRole="Customer" />
+                            <ServiceRequestList userRole="Customer" refreshTrigger={refreshTrigger} />
                         </div>
                     )}
 

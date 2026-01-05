@@ -3,12 +3,26 @@ const pool = require('../config/database');
 class ServiceRequest {
     // Create a new service request
     static async create(requestData) {
-        const { customerID, category, description, serviceDate } = requestData;
+        const { customerID, category, description, serviceDate, priorityLevel } = requestData;
+        
+        // Use the priorityLevel as-is (already normalized in controller)
+        // Only default to 'Normal' if it's truly missing
+        const finalPriority = priorityLevel || 'Normal';
+        
+        console.log('ServiceRequest.create - Model level:', {
+            receivedPriorityLevel: priorityLevel,
+            finalPriority: finalPriority,
+            requestDataKeys: Object.keys(requestData)
+        });
+        
         const query = `
             INSERT INTO ServiceRequest (customerID, category, description, serviceDate, status, priorityLevel)
-            VALUES (?, ?, ?, ?, 'Pending', 'Normal')
+            VALUES (?, ?, ?, ?, 'Pending', ?)
         `;
-        const [result] = await pool.execute(query, [customerID, category, description, serviceDate || null]);
+        const [result] = await pool.execute(query, [customerID, category, description, serviceDate || null, finalPriority]);
+        
+        console.log('ServiceRequest.create - SQL executed. Inserted RequestID:', result.insertId, 'with priorityLevel:', finalPriority);
+        
         return result.insertId;
     }
 
@@ -36,7 +50,19 @@ class ServiceRequest {
     static async getByCustomer(customerID, status = null, category = null) {
         let query = `
             SELECT 
-                sr.*,
+                sr.requestID,
+                sr.customerID,
+                sr.providerID,
+                sr.category,
+                sr.description,
+                sr.requestDate,
+                sr.serviceDate,
+                sr.status,
+                COALESCE(sr.priorityLevel, 'Normal') as priorityLevel,
+                sr.completionConfirmed,
+                sr.cancellationReason,
+                sr.createdAt,
+                sr.updatedAt,
                 p.name as providerName,
                 p.email as providerEmail
             FROM ServiceRequest sr
@@ -60,16 +86,15 @@ class ServiceRequest {
         
         query += ' ORDER BY sr.createdAt DESC';
         
-        console.log('getByCustomer - SQL Query:', query);
-        console.log('getByCustomer - Params:', params);
-        console.log('getByCustomer - Original category:', category);
-        console.log('getByCustomer - Normalized category:', category ? category.trim() : null);
         const [rows] = await pool.execute(query, params);
         console.log('getByCustomer - Rows returned:', rows.length);
         if (rows.length > 0) {
-            console.log('getByCustomer - All categories in results:', rows.map(r => `"${r.category}"`));
-        } else {
-            console.log('getByCustomer - No rows returned for category:', category);
+            console.log('getByCustomer - Sample priorityLevels:', rows.slice(0, 3).map(r => ({ 
+                id: r.requestID, 
+                status: r.status, 
+                priority: r.priorityLevel,
+                priorityType: typeof r.priorityLevel 
+            })));
         }
         return rows;
     }
@@ -78,7 +103,19 @@ class ServiceRequest {
     static async getByProvider(providerID, status = null, category = null) {
         let query = `
             SELECT 
-                sr.*,
+                sr.requestID,
+                sr.customerID,
+                sr.providerID,
+                sr.category,
+                sr.description,
+                sr.requestDate,
+                sr.serviceDate,
+                sr.status,
+                COALESCE(sr.priorityLevel, 'Normal') as priorityLevel,
+                sr.completionConfirmed,
+                sr.cancellationReason,
+                sr.createdAt,
+                sr.updatedAt,
                 c.name as customerName,
                 c.email as customerEmail,
                 c.phone as customerPhone
@@ -103,6 +140,20 @@ class ServiceRequest {
         query += ' ORDER BY sr.createdAt DESC';
         
         const [rows] = await pool.execute(query, params);
+        console.log('getByProvider - Rows returned:', rows.length);
+        if (rows.length > 0) {
+            console.log('getByProvider - Sample priorityLevels:', rows.slice(0, 3).map(r => ({ 
+                id: r.requestID, 
+                category: r.category,
+                status: r.status, 
+                priority: r.priorityLevel,
+                priorityType: typeof r.priorityLevel,
+                rawPriority: r.priorityLevel
+            })));
+            // Log full first row to see all fields
+            console.log('getByProvider - First row keys:', Object.keys(rows[0]));
+            console.log('getByProvider - First row priorityLevel:', rows[0].priorityLevel);
+        }
         return rows;
     }
 
@@ -111,6 +162,7 @@ class ServiceRequest {
         let query = `
             SELECT 
                 sr.*,
+                sr.priorityLevel,
                 c.name as customerName,
                 c.email as customerEmail,
                 c.phone as customerPhone
@@ -130,6 +182,87 @@ class ServiceRequest {
         query += ' ORDER BY sr.createdAt DESC';
         
         const [rows] = await pool.execute(query, params);
+        console.log('getPendingRequests - Rows returned:', rows.length);
+        if (rows.length > 0) {
+            console.log('getPendingRequests - Sample priorityLevels:', rows.slice(0, 3).map(r => ({ 
+                id: r.requestID, 
+                priority: r.priorityLevel 
+            })));
+        }
+        return rows;
+    }
+
+    // Get all requests for provider: unaccepted (pending) + accepted by this provider
+    static async getProviderRequests(providerID, status = null, category = null) {
+        let query = `
+            SELECT 
+                sr.requestID,
+                sr.customerID,
+                sr.providerID,
+                sr.category,
+                sr.description,
+                sr.requestDate,
+                sr.serviceDate,
+                sr.status,
+                COALESCE(sr.priorityLevel, 'Normal') as priorityLevel,
+                sr.completionConfirmed,
+                sr.cancellationReason,
+                sr.createdAt,
+                sr.updatedAt,
+                c.name as customerName,
+                c.email as customerEmail,
+                c.phone as customerPhone
+            FROM ServiceRequest sr
+            LEFT JOIN USER c ON sr.customerID = c.userID
+            WHERE (sr.status = 'Pending' AND sr.providerID IS NULL)
+               OR (sr.providerID = ?)
+        `;
+        const params = [providerID];
+        
+        if (status) {
+            if (status === 'Pending') {
+                // Only show unaccepted pending requests
+                query = query.replace(
+                    'WHERE (sr.status = \'Pending\' AND sr.providerID IS NULL) OR (sr.providerID = ?)',
+                    'WHERE sr.status = \'Pending\' AND sr.providerID IS NULL'
+                );
+                params.pop(); // Remove providerID param since we're not using it
+            } else {
+                // Only show provider's requests with this status
+                query = query.replace(
+                    'WHERE (sr.status = \'Pending\' AND sr.providerID IS NULL) OR (sr.providerID = ?)',
+                    'WHERE sr.providerID = ? AND sr.status = ?'
+                );
+                params.push(status);
+            }
+        }
+        
+        if (category) {
+            const normalizedCategory = category.trim().toLowerCase();
+            query += ' AND LOWER(TRIM(sr.category)) = ?';
+            params.push(normalizedCategory);
+        }
+        
+        query += ` ORDER BY 
+            CASE COALESCE(sr.priorityLevel, 'Normal')
+                WHEN 'Emergency' THEN 1
+                WHEN 'High' THEN 2
+                WHEN 'Normal' THEN 3
+                ELSE 4
+            END,
+            sr.createdAt DESC`;
+        
+        const [rows] = await pool.execute(query, params);
+        console.log('getProviderRequests - Rows returned:', rows.length);
+        if (rows.length > 0) {
+            console.log('getProviderRequests - Sample:', rows.slice(0, 3).map(r => ({ 
+                id: r.requestID, 
+                category: r.category,
+                status: r.status,
+                providerID: r.providerID,
+                priority: r.priorityLevel
+            })));
+        }
         return rows;
     }
 
@@ -278,6 +411,50 @@ class ServiceRequest {
         const query = `UPDATE ServiceRequest SET ${updates.join(', ')} WHERE requestID = ?`;
         await pool.execute(query, params);
         return await this.findById(requestID);
+    }
+
+    // Cancel service request (Customer only) - with cancellation reason
+    static async cancelRequest(requestID, customerID, cancellationReason) {
+        const query = `
+            UPDATE ServiceRequest 
+            SET status = 'Cancelled', cancellationReason = ?
+            WHERE requestID = ? AND customerID = ? AND status NOT IN ('Completed', 'Cancelled')
+        `;
+        const [result] = await pool.execute(query, [cancellationReason, requestID, customerID]);
+        return result.affectedRows > 0;
+    }
+
+    // Start service (Provider only) - Change status from Accepted to Ongoing
+    static async startService(requestID, providerID) {
+        const query = `
+            UPDATE ServiceRequest 
+            SET status = 'Ongoing'
+            WHERE requestID = ? AND providerID = ? AND status = 'Accepted'
+        `;
+        const [result] = await pool.execute(query, [requestID, providerID]);
+        return result.affectedRows > 0;
+    }
+
+    // Mark service as completed by provider
+    static async markAsCompleted(requestID, providerID) {
+        const query = `
+            UPDATE ServiceRequest 
+            SET status = 'Completed'
+            WHERE requestID = ? AND providerID = ? AND status IN ('Accepted', 'Ongoing')
+        `;
+        const [result] = await pool.execute(query, [requestID, providerID]);
+        return result.affectedRows > 0;
+    }
+
+    // Confirm service completion (Customer only)
+    static async confirmCompletion(requestID, customerID) {
+        const query = `
+            UPDATE ServiceRequest 
+            SET completionConfirmed = TRUE
+            WHERE requestID = ? AND customerID = ? AND status = 'Completed'
+        `;
+        const [result] = await pool.execute(query, [requestID, customerID]);
+        return result.affectedRows > 0;
     }
 }
 

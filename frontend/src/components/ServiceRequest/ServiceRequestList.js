@@ -1,14 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { serviceRequestService } from '../../services/serviceRequestService';
 import EditServiceRequest from './EditServiceRequest';
 import { SERVICE_CATEGORIES, CATEGORY_COLORS } from '../../utils/categories';
+import { io } from 'socket.io-client';
 import './ServiceRequestList.css';
 
-const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
+const ServiceRequestList = ({ userRole = 'Customer', onStartChat, refreshTrigger }) => {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
     const [editingRequest, setEditingRequest] = useState(null);
+    const [cancellingRequest, setCancellingRequest] = useState(null);
+    const [cancelReason, setCancelReason] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [categoryFilter, setCategoryFilter] = useState('all');
 
@@ -30,8 +34,12 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
                     categoryParam
                 );
             } else {
-                // Get all pending requests for providers
-                response = await serviceRequestService.getPendingRequests(
+                // For providers, when statusFilter is 'all', show both:
+                // 1. Unaccepted pending requests (can be accepted)
+                // 2. Requests accepted by this provider
+                // When statusFilter is specific, filter accordingly
+                response = await serviceRequestService.getMyServiceRequests(
+                    statusParam,
                     categoryParam
                 );
             }
@@ -42,6 +50,18 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
                 const requests = response.data.requests || [];
                 console.log('Setting requests:', requests.length, 'requests');
                 console.log('Request categories:', requests.map(r => r.category));
+                console.log('Request priorities:', requests.map(r => ({ 
+                    id: r.requestID, 
+                    category: r.category,
+                    status: r.status,
+                    priority: r.priorityLevel,
+                    priorityType: typeof r.priorityLevel,
+                    hasPriority: 'priorityLevel' in r
+                })));
+                // Debug: Log first request in detail
+                if (requests.length > 0) {
+                    console.log('First request full object:', JSON.stringify(requests[0], null, 2));
+                }
                 setRequests(requests);
             } else {
                 setError(response.message || 'Failed to load service requests');
@@ -57,7 +77,66 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
 
     useEffect(() => {
         loadRequests();
-    }, [statusFilter, categoryFilter, loadRequests]);
+    }, [statusFilter, categoryFilter, loadRequests, refreshTrigger]);
+
+    // Real-time status updates via Socket.io
+    const requestsRef = useRef(requests);
+    
+    // Update ref when requests change
+    useEffect(() => {
+        requestsRef.current = requests;
+    }, [requests]);
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const socketUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
+        const socket = io(socketUrl, {
+            auth: { token },
+            transports: ['websocket', 'polling']
+        });
+
+        socket.on('connect', () => {
+            console.log('Socket connected for status updates');
+            // Join rooms for all current requests using ref
+            requestsRef.current.forEach(request => {
+                socket.emit('join_request', request.requestID);
+            });
+        });
+
+        // Listen for status updates
+        socket.on('service_status_update', (data) => {
+            console.log('Real-time status update received:', data);
+            // Update the specific request in the list
+            setRequests(prevRequests => 
+                prevRequests.map(request => 
+                    request.requestID === data.requestID
+                        ? { ...request, status: data.status, completionConfirmed: data.completionConfirmed }
+                        : request
+                )
+            );
+            // Show a notification
+            if (data.status === 'Ongoing') {
+                setSuccess('Service has started! Status updated to Ongoing');
+            } else if (data.status === 'Completed') {
+                setSuccess('Service has been completed!');
+            }
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Socket disconnected');
+        });
+
+        socket.on('error', (error) => {
+            console.error('Socket error:', error);
+        });
+
+        return () => {
+            socket.disconnect();
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Only run once on mount, use ref for current requests
 
     const handleEdit = (request) => {
         setEditingRequest(request);
@@ -132,14 +211,106 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
         try {
             const response = await serviceRequestService.deleteServiceRequest(requestID);
             if (response.success) {
+                setSuccess('Service request deleted successfully');
                 loadRequests();
             } else {
-                alert(response.message || 'Failed to delete service request');
+                setError(response.message || 'Failed to delete service request');
             }
         } catch (err) {
             const errorMessage = err.message || err.response?.data?.message || 'Failed to delete service request';
-            alert(errorMessage);
+            setError(errorMessage);
             console.error('Error deleting service request:', err);
+        }
+    };
+
+    const handleCancelRequest = async (e) => {
+        e.preventDefault();
+        if (!cancelReason.trim()) {
+            setError('Please provide a cancellation reason');
+            return;
+        }
+
+        try {
+            setError(null);
+            const response = await serviceRequestService.cancelServiceRequest(
+                cancellingRequest.requestID,
+                cancelReason.trim()
+            );
+            if (response.success) {
+                setSuccess('Service request cancelled successfully');
+                setCancellingRequest(null);
+                setCancelReason('');
+                loadRequests();
+            } else {
+                setError(response.message || 'Failed to cancel service request');
+            }
+        } catch (err) {
+            const errorMessage = err.message || err.response?.data?.message || 'Failed to cancel service request';
+            setError(errorMessage);
+            console.error('Error cancelling service request:', err);
+        }
+    };
+
+    const handleStartService = async (requestID) => {
+        if (!window.confirm('Are you sure you want to start this service? The status will change to Ongoing and the customer will be notified.')) {
+            return;
+        }
+
+        try {
+            setError(null);
+            const response = await serviceRequestService.startService(requestID);
+            if (response.success) {
+                setSuccess('Service started successfully');
+                loadRequests();
+            } else {
+                setError(response.message || 'Failed to start service');
+            }
+        } catch (err) {
+            const errorMessage = err.message || err.response?.data?.message || 'Failed to start service';
+            setError(errorMessage);
+            console.error('Error starting service:', err);
+        }
+    };
+
+    const handleMarkAsCompleted = async (requestID) => {
+        if (!window.confirm('Are you sure you want to mark this service as completed? The customer will be notified to confirm.')) {
+            return;
+        }
+
+        try {
+            setError(null);
+            const response = await serviceRequestService.markServiceAsCompleted(requestID);
+            if (response.success) {
+                setSuccess('Service marked as completed successfully');
+                loadRequests();
+            } else {
+                setError(response.message || 'Failed to mark service as completed');
+            }
+        } catch (err) {
+            const errorMessage = err.message || err.response?.data?.message || 'Failed to mark service as completed';
+            setError(errorMessage);
+            console.error('Error marking service as completed:', err);
+        }
+    };
+
+    const handleConfirmCompletion = async (requestID) => {
+        if (!window.confirm('Are you sure you want to confirm that this service has been completed?')) {
+            return;
+        }
+
+        try {
+            setError(null);
+            const response = await serviceRequestService.confirmServiceCompletion(requestID);
+            if (response.success) {
+                setSuccess('Service completion confirmed successfully');
+                loadRequests();
+            } else {
+                setError(response.message || 'Failed to confirm service completion');
+            }
+        } catch (err) {
+            const errorMessage = err.message || err.response?.data?.message || 'Failed to confirm service completion';
+            setError(errorMessage);
+            console.error('Error confirming service completion:', err);
         }
     };
 
@@ -183,7 +354,13 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
         <div className="service-request-list-container">
             <div className="service-request-list-header">
                 <h2>
-                    {userRole === 'Customer' ? 'My Service Requests' : 'Available Service Requests'}
+                    {userRole === 'Customer' 
+                        ? 'My Service Requests' 
+                        : statusFilter === 'Pending'
+                            ? 'Available Service Requests (Unaccepted)' 
+                            : statusFilter === 'all'
+                                ? 'All Requests (Unaccepted + My Accepted)'
+                                : 'My Service Requests'}
                 </h2>
                 <div className="filters-container">
                     {userRole === 'Customer' && (
@@ -201,6 +378,23 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
                                 <option value="Completed">Completed</option>
                                 <option value="Cancelled">Cancelled</option>
                                 <option value="Rejected">Rejected</option>
+                            </select>
+                        </div>
+                    )}
+                    {userRole === 'Provider' && (
+                        <div className="filter-section">
+                            <label>Filter by Status:</label>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="status-filter"
+                            >
+                                <option value="all">All (Unaccepted + My Accepted)</option>
+                                <option value="Pending">Available (Unaccepted Only)</option>
+                                <option value="Accepted">My Accepted</option>
+                                <option value="Ongoing">My Ongoing</option>
+                                <option value="Completed">My Completed</option>
+                                <option value="Cancelled">My Cancelled</option>
                             </select>
                         </div>
                     )}
@@ -265,6 +459,15 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
             {error && (
                 <div className="error-message">
                     {error}
+                    <button onClick={() => setError(null)} className="alert-close">×</button>
+                </div>
+            )}
+
+            {success && (
+                <div className="success-message">
+                    <span className="success-icon">✓</span>
+                    {success}
+                    <button onClick={() => setSuccess(null)} className="alert-close">×</button>
                 </div>
             )}
 
@@ -277,13 +480,23 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
                 </div>
             ) : (
                 <div className="requests-grid">
-                    {requests.map((request) => (
-                        <div key={request.requestID} className="request-card">
+                    {requests.map((request) => {
+                        // Normalize priorityLevel - handle NULL, undefined, or empty values
+                        const priorityLevel = request.priorityLevel || 'Normal';
+                        return (
+                        <div key={request.requestID} className={`request-card ${priorityLevel === 'Emergency' ? 'priority-emergency' : priorityLevel === 'High' ? 'priority-high' : ''}`}>
                             <div className="request-header">
                                 <h3 className="request-category">{request.category}</h3>
-                                <span className={`status-badge ${getStatusBadgeClass(request.status)}`}>
-                                    {request.status}
-                                </span>
+                                <div className="header-badges">
+                                    {priorityLevel && priorityLevel !== 'Normal' && (
+                                        <span className={`priority-badge priority-${priorityLevel.toLowerCase()}`}>
+                                            {priorityLevel === 'Emergency' ? '🚨 Emergency' : 'High Priority'}
+                                        </span>
+                                    )}
+                                    <span className={`status-badge ${getStatusBadgeClass(request.status)}`}>
+                                        {request.status}
+                                    </span>
+                                </div>
                             </div>
 
                             <div className="request-body">
@@ -312,6 +525,32 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
                                             <span className="detail-value">{request.providerName}</span>
                                         </div>
                                     )}
+                                    {request.cancellationReason && (
+                                        <div className="detail-item">
+                                            <span className="detail-label">Cancellation Reason:</span>
+                                            <span className="detail-value" style={{ color: '#d32f2f' }}>
+                                                {request.cancellationReason}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {(() => {
+                                        const priorityLevel = request.priorityLevel || 'Normal';
+                                        return (
+                                            <div className="detail-item">
+                                                <span className="detail-label">Priority:</span>
+                                                <span className={`detail-value ${priorityLevel !== 'Normal' ? `priority-${priorityLevel.toLowerCase()}` : ''}`}>
+                                                    {priorityLevel === 'Emergency' ? '🚨 Emergency' : priorityLevel}
+                                                </span>
+                                            </div>
+                                        );
+                                    })()}
+                                    {request.status === 'Completed' && request.completionConfirmed && (
+                                        <div className="detail-item">
+                                            <span className="detail-label" style={{ color: '#2e7d32' }}>
+                                                ✓ Completion Confirmed
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -330,7 +569,34 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
                                         >
                                             Delete
                                         </button>
+                                        <button
+                                            onClick={() => setCancellingRequest(request)}
+                                            className="btn-cancel"
+                                        >
+                                            Cancel
+                                        </button>
                                     </>
+                                )}
+                                {userRole === 'Customer' && 
+                                 request.status !== 'Pending' && 
+                                 request.status !== 'Cancelled' && 
+                                 request.status !== 'Completed' && (
+                                    <button
+                                        onClick={() => setCancellingRequest(request)}
+                                        className="btn-cancel"
+                                    >
+                                        Cancel Request
+                                    </button>
+                                )}
+                                {userRole === 'Customer' && 
+                                 request.status === 'Completed' && 
+                                 !request.completionConfirmed && (
+                                    <button
+                                        onClick={() => handleConfirmCompletion(request.requestID)}
+                                        className="btn-complete"
+                                    >
+                                        ✓ Confirm Completion
+                                    </button>
                                 )}
                                 {userRole === 'Provider' && request.status === 'Pending' && (
                                     <>
@@ -348,7 +614,42 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
                                         </button>
                                     </>
                                 )}
-                                {userRole === 'Provider' && request.status !== 'Pending' && (
+                                {userRole === 'Provider' && request.status === 'Accepted' && (
+                                    <>
+                                        <button
+                                            onClick={() => handleStartService(request.requestID)}
+                                            className="btn-start"
+                                        >
+                                            ▶ Start Service
+                                        </button>
+                                        <button
+                                            onClick={() => handleStartChat(request)}
+                                            className="btn-chat"
+                                        >
+                                            💬 Message Customer
+                                        </button>
+                                    </>
+                                )}
+                                {userRole === 'Provider' && request.status === 'Ongoing' && (
+                                    <>
+                                        <button
+                                            onClick={() => handleMarkAsCompleted(request.requestID)}
+                                            className="btn-complete"
+                                        >
+                                            ✓ Mark as Completed
+                                        </button>
+                                        <button
+                                            onClick={() => handleStartChat(request)}
+                                            className="btn-chat"
+                                        >
+                                            💬 Message Customer
+                                        </button>
+                                    </>
+                                )}
+                                {userRole === 'Provider' && 
+                                 request.status !== 'Pending' && 
+                                 request.status !== 'Accepted' && 
+                                 request.status !== 'Ongoing' && (
                                     <button
                                         onClick={() => handleStartChat(request)}
                                         className="btn-chat"
@@ -358,7 +659,50 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat }) => {
                                 )}
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Cancellation Modal */}
+            {cancellingRequest && (
+                <div className="modal-overlay" onClick={() => {
+                    setCancellingRequest(null);
+                    setCancelReason('');
+                    setError(null);
+                }}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <h3>Cancel Service Request</h3>
+                        <p>Please provide a reason for cancelling this service request:</p>
+                        <form onSubmit={handleCancelRequest}>
+                            <div className="form-group">
+                                <textarea
+                                    className="form-textarea"
+                                    value={cancelReason}
+                                    onChange={(e) => setCancelReason(e.target.value)}
+                                    placeholder="Enter cancellation reason..."
+                                    rows="4"
+                                    required
+                                />
+                            </div>
+                            <div className="form-actions">
+                                <button type="submit" className="btn-cancel">
+                                    Confirm Cancellation
+                                </button>
+                                <button 
+                                    type="button" 
+                                    onClick={() => {
+                                        setCancellingRequest(null);
+                                        setCancelReason('');
+                                        setError(null);
+                                    }}
+                                    className="btn-submit"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             )}
         </div>

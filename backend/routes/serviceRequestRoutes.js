@@ -10,7 +10,11 @@ const {
     deleteServiceRequest,
     getServiceRequestsByCategory,
     acceptServiceRequest,
-    rejectServiceRequest
+    rejectServiceRequest,
+    cancelServiceRequest,
+    startService,
+    markServiceAsCompleted,
+    confirmServiceCompletion
 } = require('../controllers/serviceRequestController');
 
 // Create service request (Customer only)
@@ -27,6 +31,18 @@ router.post('/:requestID/accept', authenticate, authorize('Provider'), acceptSer
 
 // Reject service request (Provider only) - MUST come before /:requestID route
 router.post('/:requestID/reject', authenticate, authorize('Provider'), rejectServiceRequest);
+
+// Cancel service request (Customer only) - MUST come before /:requestID route
+router.post('/:requestID/cancel', authenticate, authorize('Customer'), cancelServiceRequest);
+
+// Start service (Provider only) - Change status from Accepted to Ongoing - MUST come before /:requestID route
+router.post('/:requestID/start', authenticate, authorize('Provider'), startService);
+
+// Mark service as completed (Provider only) - MUST come before /:requestID route
+router.post('/:requestID/complete', authenticate, authorize('Provider'), markServiceAsCompleted);
+
+// Confirm service completion (Customer only) - MUST come before /:requestID route
+router.post('/:requestID/confirm-completion', authenticate, authorize('Customer'), confirmServiceCompletion);
 
 // Get my service requests (Customer or Provider)
 router.get('/', authenticate, getMyServiceRequests);
