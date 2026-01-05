@@ -109,9 +109,14 @@ const CustomerDashboard = () => {
                         <Link to="/dashboard/customer/bundles" className="nav-link">
                             Browse Bundles
                         </Link>
+                        <Link to="/dashboard/customer/payments" className="nav-link">
+                            Payments
+                        </Link>
                         <Link to="/dashboard/customer/manual-bookings" className="nav-link">
                             Manual Bookings
                         </Link>
+                        <Link to="/gamification" className="nav-link">
+                            Leaderboard
                         <Link to="/dashboard/customer/history" className="nav-link">
                             Job History
                         </Link>

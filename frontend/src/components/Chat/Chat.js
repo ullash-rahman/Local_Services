@@ -21,7 +21,7 @@ const Chat = ({ requestID, otherUserID, otherUserName, onClose, requestCategory,
         const token = authService.getToken();
         if (!token) return;
 
-        const newSocket = io(process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001', {
+        const newSocket = io(process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000', {
             auth: { token },
             transports: ['websocket', 'polling']
         });

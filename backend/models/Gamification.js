@@ -1,5 +1,18 @@
 const pool = require('../config/database');
 
+// Points calculation constants (from design document)
+const POINTS = {
+  // Payment-based points
+  PAYMENT_BASE: 15,
+  PAYMENT_AMOUNT_DIVISOR: 100,  // amount / 100
+  PAYMENT_MAX_BONUS: 50,
+  
+  // Review-based points
+  REVIEW_BASE: 10,
+  REVIEW_RATING_MULTIPLIER: 5,  // rating * 5
+  REVIEW_REPLY_BONUS: 5
+};
+
 class Gamification {
   // Cache table name to avoid repeated checks
   static _tableName = null;
@@ -80,6 +93,109 @@ class Gamification {
       return { success: true, pointsAdded: pointsToAdd };
     } catch (error) {
       console.error('Error adding points:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate points for a payment
+   * Formula: base 15 + min(floor(amount/100), 50)
+   * @param {number} amount - Payment amount
+   * @returns {number} Points to award
+   */
+  static calculatePaymentPoints(amount) {
+    const bonus = Math.min(Math.floor(amount / POINTS.PAYMENT_AMOUNT_DIVISOR), POINTS.PAYMENT_MAX_BONUS);
+    return POINTS.PAYMENT_BASE + bonus;
+  }
+
+  /**
+   * Add payment points to a user
+   * Calculates points using the payment formula and adds them
+   * @param {number} userID - User ID
+   * @param {number} amount - Payment amount
+   * @returns {Promise<Object>} Result with points added
+   */
+  static async addPaymentPoints(userID, amount) {
+    try {
+      const points = this.calculatePaymentPoints(amount);
+      await this.createOrUpdate(userID);
+      const result = await this.addPoints(userID, points);
+      return { 
+        success: true, 
+        pointsAdded: points,
+        amount: amount,
+        formula: `15 + min(floor(${amount}/100), 50) = ${points}`
+      };
+    } catch (error) {
+      console.error('Error adding payment points:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add reply bonus points to a user
+   * Awards 5 bonus points for replying to a review
+   * @param {number} userID - User ID
+   * @returns {Promise<Object>} Result with points added
+   */
+  static async addReplyPoints(userID) {
+    try {
+      await this.createOrUpdate(userID);
+      const result = await this.addPoints(userID, POINTS.REVIEW_REPLY_BONUS);
+      return { 
+        success: true, 
+        pointsAdded: POINTS.REVIEW_REPLY_BONUS,
+        reason: 'review_reply_bonus'
+      };
+    } catch (error) {
+      console.error('Error adding reply points:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check and award earnings milestone badges
+   * Awards badges at 1000, 5000, 10000 BDT total earnings
+   * @param {number} userID - User ID (provider)
+   * @param {number} totalEarnings - Total earnings amount in BDT
+   * @returns {Promise<Object>} Result with any new badges awarded
+   */
+  static async checkEarningsMilestones(userID, totalEarnings) {
+    try {
+      const milestones = [
+        { threshold: 1000, badge: 'earnings_1k' },
+        { threshold: 5000, badge: 'earnings_5k' },
+        { threshold: 10000, badge: 'earnings_10k' }
+      ];
+
+      const gamificationData = await this.getGamificationData(userID);
+      const currentBadges = gamificationData.badgesEarned || [];
+      const newBadges = [];
+
+      for (const milestone of milestones) {
+        if (totalEarnings >= milestone.threshold && !currentBadges.includes(milestone.badge)) {
+          currentBadges.push(milestone.badge);
+          newBadges.push(milestone.badge);
+        }
+      }
+
+      if (newBadges.length > 0) {
+        const tableName = await this.getTableName();
+        const userIdInt = parseInt(userID, 10);
+        await pool.query(
+          `UPDATE ${tableName} SET badges = ? WHERE userID = ?`,
+          [JSON.stringify(currentBadges), userIdInt]
+        );
+      }
+
+      return {
+        success: true,
+        totalEarnings,
+        currentBadges,
+        newBadgesAwarded: newBadges
+      };
+    } catch (error) {
+      console.error('Error checking earnings milestones:', error);
       throw error;
     }
   }
@@ -195,21 +311,22 @@ class Gamification {
       const tableName = await this.getTableName();
       const userIdInt = parseInt(userID, 10);
       
-      // Get total count and user's data
+      // Get total count and user's data including previous rank
       const [countRows] = await pool.query(`SELECT COUNT(*) as total FROM ${tableName}`);
       const totalUsers = countRows[0]?.total || 1;
       
-      // Get user's monthly points
+      // Get user's monthly points and previous rank
       const [userRows] = await pool.query(
-        `SELECT userID, currentMonthPoints as monthlyPoints FROM ${tableName} WHERE userID = ?`,
+        `SELECT userID, currentMonthPoints as monthlyPoints, COALESCE(monthlyRank, 0) as previousRank FROM ${tableName} WHERE userID = ?`,
         [userIdInt]
       );
       
       if (!userRows || userRows.length === 0) {
-        return { userID, monthlyPoints: 0, rank: 0, percentile: 0 };
+        return { userID, monthlyPoints: 0, rank: 0, previousRank: 0, percentile: 0 };
       }
       
       const userPoints = userRows[0].monthlyPoints || 0;
+      const previousRank = userRows[0].previousRank || 0;
       
       // Calculate rank by counting how many users have more points
       // (Alternative approach that works on older MySQL versions)
@@ -234,10 +351,16 @@ class Gamification {
         [userRank, userIdInt]
       );
       
+      // Check if provider entered top 10 and emit notification
+      if (userRank <= 10 && (previousRank === 0 || previousRank > 10)) {
+        await this.emitRankChangeNotification(userIdInt, userRank, previousRank, userPoints);
+      }
+      
       return {
         userID: userIdInt,
         monthlyPoints: userPoints,
         rank: userRank,
+        previousRank: previousRank,
         percentile: percentile
       };
     } catch (error) {
@@ -248,6 +371,39 @@ class Gamification {
         sqlMessage: error.sqlMessage
       });
       throw error;
+    }
+  }
+
+  /**
+   * Emit rank change notification when provider enters top 10
+   * @param {number} userID - User ID
+   * @param {number} newRank - New rank position
+   * @param {number} previousRank - Previous rank position
+   * @param {number} monthlyPoints - Current monthly points
+   */
+  static async emitRankChangeNotification(userID, newRank, previousRank, monthlyPoints) {
+    const Notification = require('./Notification');
+    
+    try {
+      // Create database notification
+      await Notification.create({
+        userID: userID,
+        message: `Congratulations! You're now ranked #${newRank} this month!`,
+        notificationType: 'rank'
+      });
+
+      // Emit Socket.io event if available
+      if (global.io) {
+        global.io.to(`user_${userID}`).emit('rank_changed', {
+          newRank,
+          previousRank,
+          monthlyPoints,
+          message: `You're now ranked #${newRank} this month!`
+        });
+      }
+    } catch (error) {
+      console.error('Error emitting rank change notification:', error);
+      // Don't throw - notification failure shouldn't break the ranking update
     }
   }
 
@@ -273,26 +429,85 @@ class Gamification {
     try {
       const data = await this.getGamificationData(userID);
       
-      if (!data) return [];
+      if (!data) return { badges: [], newBadges: [] };
 
-      const badges = [];
+      const currentBadges = data.badgesEarned || [];
+      const newBadges = [];
+      const allBadges = [...currentBadges];
 
-      if (data.totalPoints >= 100) badges.push('centaurion');
-      if (data.totalPoints >= 500) badges.push('elite_worker');
-      if (data.totalPoints >= 1000) badges.push('master_provider');
-      if (data.consecutiveDays >= 7) badges.push('week_warrior');
-      if (data.consecutiveDays >= 30) badges.push('month_master');
+      // Check point-based badges
+      const pointBadges = [
+        { threshold: 100, badge: 'centaurion' },
+        { threshold: 500, badge: 'elite_worker' },
+        { threshold: 1000, badge: 'master_provider' }
+      ];
 
-      const badgesJson = JSON.stringify(badges);
+      for (const { threshold, badge } of pointBadges) {
+        if (data.totalPoints >= threshold && !allBadges.includes(badge)) {
+          allBadges.push(badge);
+          newBadges.push(badge);
+        }
+      }
+
+      // Check consecutive days badges
+      if (data.consecutiveDays >= 7 && !allBadges.includes('week_warrior')) {
+        allBadges.push('week_warrior');
+        newBadges.push('week_warrior');
+      }
+      if (data.consecutiveDays >= 30 && !allBadges.includes('month_master')) {
+        allBadges.push('month_master');
+        newBadges.push('month_master');
+      }
+
+      // Update badges in database
+      const badgesJson = JSON.stringify(allBadges);
       const tableName = await this.getTableName();
       const userIdInt = parseInt(userID, 10);
       const updateQuery = `UPDATE ${tableName} SET badges = ? WHERE userID = ?`;
       await pool.query(updateQuery, [badgesJson, userIdInt]);
 
-      return badges;
+      // Emit badge earned notifications for new badges
+      if (newBadges.length > 0) {
+        await this.emitBadgeNotifications(userID, newBadges, allBadges.length);
+      }
+
+      return { badges: allBadges, newBadges };
     } catch (error) {
       console.error('Error checking badges:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Emit badge earned notifications for newly awarded badges
+   * @param {number} userID - User ID
+   * @param {Array<string>} newBadges - Array of newly earned badge names
+   * @param {number} totalBadges - Total badges count
+   */
+  static async emitBadgeNotifications(userID, newBadges, totalBadges) {
+    const Notification = require('./Notification');
+    
+    for (const badgeName of newBadges) {
+      try {
+        // Create database notification
+        await Notification.create({
+          userID: userID,
+          message: `Congratulations! You earned the "${badgeName}" badge!`,
+          notificationType: 'badge'
+        });
+
+        // Emit Socket.io event if available
+        if (global.io) {
+          global.io.to(`user_${userID}`).emit('badge_earned', {
+            badgeName,
+            totalBadges,
+            message: `You earned the "${badgeName}" badge!`
+          });
+        }
+      } catch (error) {
+        console.error(`Error emitting badge notification for ${badgeName}:`, error);
+        // Continue with other badges even if one fails
+      }
     }
   }
 
@@ -341,3 +556,4 @@ class Gamification {
 }
 
 module.exports = Gamification;
+module.exports.POINTS = POINTS;

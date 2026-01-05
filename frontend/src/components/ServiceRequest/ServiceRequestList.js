@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { serviceRequestService } from '../../services/serviceRequestService';
 import EditServiceRequest from './EditServiceRequest';
+import ReviewSubmission from '../Reviews/ReviewSubmission';
 import { SERVICE_CATEGORIES, CATEGORY_COLORS } from '../../utils/categories';
 import { io } from 'socket.io-client';
 import './ServiceRequestList.css';
@@ -11,6 +12,7 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat, refreshTrigger
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     const [editingRequest, setEditingRequest] = useState(null);
+    const [reviewingRequest, setReviewingRequest] = useState(null);
     const [cancellingRequest, setCancellingRequest] = useState(null);
     const [cancelReason, setCancelReason] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -350,6 +352,23 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat, refreshTrigger
         );
     }
 
+    if (reviewingRequest) {
+        return (
+            <div className="service-request-list-container">
+                <ReviewSubmission
+                    requestID={reviewingRequest.requestID}
+                    providerName={reviewingRequest.providerName}
+                    onSuccess={() => {
+                        setReviewingRequest(null);
+                        loadRequests();
+                        alert('Thank you for your review!');
+                    }}
+                    onCancel={() => setReviewingRequest(null)}
+                />
+            </div>
+        );
+    }
+
     return (
         <div className="service-request-list-container">
             <div className="service-request-list-header">
@@ -577,6 +596,16 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat, refreshTrigger
                                         </button>
                                     </>
                                 )}
+                                {userRole === 'Customer' && request.status === 'Completed' && !request.hasReview && (
+                                    <button
+                                        onClick={() => setReviewingRequest(request)}
+                                        className="btn-review"
+                                    >
+                                        ⭐ Leave Review
+                                    </button>
+                                )}
+                                {userRole === 'Customer' && request.status === 'Completed' && request.hasReview && (
+                                    <span className="review-submitted-badge">✓ Review Submitted</span>
                                 {userRole === 'Customer' && 
                                  request.status !== 'Pending' && 
                                  request.status !== 'Cancelled' && 

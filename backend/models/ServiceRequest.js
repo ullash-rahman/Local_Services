@@ -64,9 +64,11 @@ class ServiceRequest {
                 sr.createdAt,
                 sr.updatedAt,
                 p.name as providerName,
-                p.email as providerEmail
+                p.email as providerEmail,
+                CASE WHEN r.reviewID IS NOT NULL THEN 1 ELSE 0 END as hasReview
             FROM ServiceRequest sr
             LEFT JOIN USER p ON sr.providerID = p.userID
+            LEFT JOIN Review r ON sr.requestID = r.requestID
             WHERE sr.customerID = ?
         `;
         const params = [customerID];
@@ -413,6 +415,10 @@ class ServiceRequest {
         return await this.findById(requestID);
     }
 
+    // Update service request status
+    static async updateStatus(requestID, status) {
+        const query = `UPDATE ServiceRequest SET status = ? WHERE requestID = ?`;
+        const [result] = await pool.execute(query, [status, requestID]);
     // Cancel service request (Customer only) - with cancellation reason
     static async cancelRequest(requestID, customerID, cancellationReason) {
         const query = `

@@ -10,6 +10,7 @@ import BundleListPage from './components/Bundle/BundleListPage';
 import Gamification from './components/Gamification/Gamification';
 import AnalyticsDashboard from './components/Analytics/AnalyticsDashboard';
 import EarningsDashboard from './components/Earnings/EarningsDashboard';
+import PaymentCenter from './components/Payment/PaymentCenter';
 import ProviderManualBookingsPage from './components/Booking/ProviderManualBookingsPage';
 import ManualBookingPage from './components/Booking/ManualBookingPage';
 import ProviderAvailabilityCalendarPage from './components/Booking/ProviderAvailabilityCalendarPage';
@@ -84,6 +85,14 @@ function App() {
                         }
                     />
                     <Route
+                        path="/dashboard/customer/payments"
+                        element={
+                            <ProtectedRoute allowedRoles={['Customer']}>
+                                <PaymentCenter />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
                         path="/gamification"
                         element={
                             <ProtectedRoute>
@@ -104,6 +113,14 @@ function App() {
                         element={
                             <ProtectedRoute allowedRoles={['Provider']}>
                                 <EarningsDashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/dashboard/provider/payments"
+                        element={
+                            <ProtectedRoute allowedRoles={['Provider']}>
+                                <PaymentCenter />
                             </ProtectedRoute>
                         }
                     />

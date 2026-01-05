@@ -132,6 +132,9 @@ const ProviderDashboard = () => {
                             <Link to="/dashboard/provider/servicebundle" className="nav-link">
                                 Service Bundles
                             </Link>
+                            <Link to="/dashboard/provider/payments" className="nav-link">
+                                Payments
+                            </Link>
                             <Link to="/dashboard/provider/earnings" className="nav-link">
                                 Earnings
                             </Link>
