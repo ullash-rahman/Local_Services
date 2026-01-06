@@ -20,9 +20,14 @@ export const manualBookingService = {
     // Create a new manual booking
     createManualBooking: async (bookingData) => {
         try {
+            console.log('API: Creating manual booking with data:', bookingData);
             const response = await api.post('/manual-booking/create', bookingData);
+            console.log('API: Booking created successfully:', response.data);
             return response.data;
         } catch (error) {
+            console.error('API: Error creating booking:', error);
+            console.error('API: Error response:', error.response);
+            console.error('API: Error data:', error.response?.data);
             throw error.response?.data || { message: 'Failed to create manual booking' };
         }
     },

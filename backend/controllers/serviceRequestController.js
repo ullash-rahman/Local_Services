@@ -398,15 +398,22 @@ const acceptServiceRequest = async (req, res) => {
             });
         }
 
+        let accepted;
+        // Handle manual bookings (providerID already set) vs normal requests (providerID is NULL)
         if (request.providerID !== null) {
-            return res.status(400).json({
-                success: false,
-                message: 'Service request has already been accepted by another provider'
-            });
+            // This is a manual booking - verify it's assigned to this provider
+            if (request.providerID !== providerID) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'This booking is assigned to another provider'
+                });
+            }
+            // Accept the manual booking (just update status, providerID already set)
+            accepted = await ServiceRequest.acceptManualBooking(requestID, providerID);
+        } else {
+            // Normal request - assign provider and accept
+            accepted = await ServiceRequest.acceptRequest(requestID, providerID);
         }
-
-        // Accept the request
-        const accepted = await ServiceRequest.acceptRequest(requestID, providerID);
 
         if (!accepted) {
             return res.status(400).json({
@@ -490,8 +497,23 @@ const rejectServiceRequest = async (req, res) => {
             });
         }
 
-        // Reject the request
-        const rejected = await ServiceRequest.rejectRequest(requestID);
+        let rejected;
+        // Handle manual bookings (providerID already set) vs normal requests (providerID is NULL)
+        if (request.providerID !== null) {
+            // This is a manual booking - verify it's assigned to this provider
+            const providerID = req.user.userID;
+            if (request.providerID !== providerID) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'This booking is assigned to another provider'
+                });
+            }
+            // Reject the manual booking
+            rejected = await ServiceRequest.rejectManualBooking(requestID, providerID);
+        } else {
+            // Normal request - just reject (no provider assigned)
+            rejected = await ServiceRequest.rejectRequest(requestID);
+        }
 
         if (!rejected) {
             return res.status(400).json({

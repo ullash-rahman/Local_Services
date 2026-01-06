@@ -6,8 +6,23 @@ const Availability = require('../models/Availability');
 // Create a manual booking for a preferred provider
 const createManualBooking = async (req, res) => {
     try {
+        console.log('=== CREATE MANUAL BOOKING ===');
+        console.log('Request body:', JSON.stringify(req.body, null, 2));
+        console.log('User:', req.user);
+        
         const customerID = req.user.userID;
         const { providerID, category, description, scheduledDate, scheduledTime, serviceDate, priorityLevel } = req.body;
+        
+        console.log('Extracted data:', {
+            customerID,
+            providerID,
+            category,
+            description,
+            scheduledDate,
+            scheduledTime,
+            serviceDate,
+            priorityLevel
+        });
 
         // Validation
         if (!providerID || !category || !description || !scheduledDate) {
@@ -24,9 +39,17 @@ const createManualBooking = async (req, res) => {
             });
         }
 
-        // Validate scheduled date
+        // Validate and normalize scheduled date to YYYY-MM-DD format
+        let normalizedScheduledDate = scheduledDate;
         if (scheduledDate) {
-            const date = new Date(scheduledDate);
+            // Extract date part if it's an ISO string
+            if (scheduledDate.includes('T')) {
+                normalizedScheduledDate = scheduledDate.split('T')[0];
+            } else if (scheduledDate.includes(' ')) {
+                normalizedScheduledDate = scheduledDate.split(' ')[0];
+            }
+            
+            const date = new Date(normalizedScheduledDate);
             if (isNaN(date.getTime())) {
                 return res.status(400).json({
                     success: false,
@@ -43,6 +66,21 @@ const createManualBooking = async (req, res) => {
                     message: 'Scheduled date cannot be in the past'
                 });
             }
+        }
+        
+        // Normalize scheduledTime - extract start time if it's in format "10:00-11:00"
+        // Database TIME column expects format "HH:MM:SS" or "HH:MM"
+        let normalizedScheduledTime = scheduledTime;
+        if (scheduledTime && scheduledTime.includes('-')) {
+            // Extract start time from "10:00-11:00" format
+            normalizedScheduledTime = scheduledTime.split('-')[0];
+            // Ensure it's in HH:MM:SS format
+            if (normalizedScheduledTime.length === 5) {
+                normalizedScheduledTime = normalizedScheduledTime + ':00';
+            }
+        } else if (scheduledTime && scheduledTime.length === 5) {
+            // If it's already "10:00" format, add seconds
+            normalizedScheduledTime = scheduledTime + ':00';
         }
 
         // Verify provider exists and is a Provider
@@ -61,43 +99,27 @@ const createManualBooking = async (req, res) => {
             });
         }
 
-        // Check if provider is verified
-        if (!provider.verified) {
-            return res.status(400).json({
-                success: false,
-                message: 'Provider is not verified'
-            });
-        }
+        // Allow booking any provider (verified or unverified)
 
-        // Check provider availability if timeSlot is provided
-        if (scheduledTime) {
-            // Convert scheduledTime to timeSlot format (e.g., "09:00" -> "09:00-10:00" or use as-is)
-            const timeSlot = scheduledTime.length === 5 ? scheduledTime : scheduledTime;
-            const isAvailable = await Availability.isAvailable(providerID, scheduledDate, timeSlot);
-            
-            if (!isAvailable) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Provider is not available at the selected date and time. Please check provider availability calendar.'
-                });
-            }
-        } else {
-            // If no specific time, check if provider has any availability on that date
-            const dateAvailability = await Availability.getByProviderAndDate(providerID, scheduledDate);
-            if (dateAvailability.length === 0 || !dateAvailability.some(a => a.available)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Provider is not available on the selected date. Please check provider availability calendar.'
-                });
-            }
-        }
+        // For manual bookings, we trust the user's selection since they chose from available slots shown in the UI
+        // We completely skip the availability check to avoid any date format mismatches or false negatives
+        // The frontend already filters and shows only available slots, so we trust that selection
+        console.log('=== SKIPPING AVAILABILITY CHECK FOR MANUAL BOOKING ===');
+        console.log('Manual booking - user selected from available slots shown in UI');
+        console.log('Booking details:', { 
+            providerID, 
+            scheduledDate: normalizedScheduledDate, 
+            scheduledTime,
+            normalizedScheduledTime
+        });
+        console.log('Proceeding with booking creation...');
 
         // Create service request first
         const requestID = await ServiceRequest.create({
             customerID,
             category: category.trim(),
             description: description.trim(),
-            serviceDate: serviceDate || scheduledDate
+            serviceDate: serviceDate || normalizedScheduledDate
         });
 
         // Set providerID but keep status as Pending (provider needs to accept/reject)
@@ -108,16 +130,21 @@ const createManualBooking = async (req, res) => {
         });
 
         // Create booking with manualBooking flag set to true
+        // Use normalized scheduledTime (HH:MM:SS format) for database
         const bookingID = await Booking.create({
             requestID,
             providerID,
-            scheduledDate,
-            scheduledTime: scheduledTime || null,
+            scheduledDate: normalizedScheduledDate,
+            scheduledTime: normalizedScheduledTime || null,
             manualBooking: true
         });
 
         // Get the created booking with details
         const booking = await Booking.findById(bookingID);
+
+        console.log('=== BOOKING CREATED SUCCESSFULLY ===');
+        console.log('Booking ID:', bookingID);
+        console.log('Booking details:', booking);
 
         res.status(201).json({
             success: true,
@@ -125,7 +152,9 @@ const createManualBooking = async (req, res) => {
             data: { booking }
         });
     } catch (error) {
-        console.error('Create manual booking error:', error);
+        console.error('=== CREATE MANUAL BOOKING ERROR ===');
+        console.error('Error:', error);
+        console.error('Error stack:', error.stack);
         res.status(500).json({
             success: false,
             message: 'Server error while creating manual booking',

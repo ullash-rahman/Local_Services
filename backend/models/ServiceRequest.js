@@ -241,9 +241,9 @@ class ServiceRequest {
         // Handle status filter
         if (status) {
             if (status === 'Pending') {
-                // Only show unaccepted pending requests
-                baseCondition = `sr.status = 'Pending' AND sr.providerID IS NULL`;
-                // No params needed for this condition
+                // Show both unaccepted pending requests AND pending requests assigned to this provider (manual bookings)
+                baseCondition = `(sr.status = 'Pending' AND sr.providerID IS NULL) OR (sr.status = 'Pending' AND sr.providerID = ?)`;
+                params.push(providerID);
             } else {
                 // Only show provider's requests with this specific status
                 baseCondition = `sr.providerID = ? AND sr.status = ?`;

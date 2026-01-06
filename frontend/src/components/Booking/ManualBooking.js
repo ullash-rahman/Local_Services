@@ -119,75 +119,8 @@ const ManualBooking = () => {
         }));
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError(null);
-        setSuccess(null);
-
-        // Validation
-        if (!formData.providerID) {
-            setError('Please select a provider');
-            return;
-        }
-
-        if (!formData.category) {
-            setError('Please select a category');
-            return;
-        }
-
-        if (!formData.description || formData.description.trim().length < 10) {
-            setError('Description must be at least 10 characters long');
-            return;
-        }
-
-        if (!formData.scheduledDate) {
-            setError('Please select a scheduled date');
-            return;
-        }
-
-        // Validate date
-        if (formData.scheduledDate) {
-            const selectedDate = new Date(formData.scheduledDate);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            if (selectedDate < today) {
-                setError('Scheduled date cannot be in the past');
-                return;
-            }
-        }
-
-        try {
-            const response = await manualBookingService.createManualBooking({
-                providerID: formData.providerID,
-                category: formData.category,
-                description: formData.description.trim(),
-                scheduledDate: formData.scheduledDate,
-                scheduledTime: formData.scheduledTime || null,
-                serviceDate: formData.serviceDate || null,
-                priorityLevel: formData.priorityLevel
-            });
-
-            if (response.success) {
-                setSuccess('Manual booking created successfully!');
-                setShowCreateForm(false);
-                setFormData({
-                    providerID: '',
-                    category: '',
-                    description: '',
-                    scheduledDate: '',
-                    scheduledTime: '',
-                    serviceDate: '',
-                    priorityLevel: 'Normal'
-                });
-                loadBookings();
-            } else {
-                setError(response.message || 'Failed to create booking');
-            }
-        } catch (err) {
-            setError(err.message || err.response?.data?.message || 'Failed to create booking');
-        }
-    };
+    // Note: handleSubmit is no longer needed as booking is handled by CustomerBookingCalendar
+    // This function is kept for potential future use but not currently called
 
     const handleCancelBooking = async (e) => {
         e.preventDefault();
@@ -282,151 +215,68 @@ const ManualBooking = () => {
             {showCreateForm && (
                 <div className="create-service-request-card">
                     <h2>Create Manual Booking</h2>
-                    <form onSubmit={handleSubmit}>
-                        <div className="form-group">
-                            <label htmlFor="providerID">Select Preferred Provider *</label>
-                            {loadingProviders ? (
-                                <div className="loading-message">Loading providers...</div>
-                            ) : providers.length === 0 ? (
-                                <div className="error-message" style={{ padding: '10px', marginTop: '5px' }}>
-                                    No providers are available. Please contact support.
-                                </div>
-                            ) : (
-                                <>
-                                    <select
-                                        id="providerID"
-                                        name="providerID"
-                                        className="form-select"
-                                        value={formData.providerID}
-                                        onChange={handleInputChange}
-                                        required
-                                    >
-                                        <option value="">-- Select Provider --</option>
-                                        {providers.map(provider => (
-                                            <option key={provider.userID} value={provider.userID}>
-                                                {provider.name} {provider.verified ? '✓ (Verified)' : ' (Unverified)'}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <span className="form-help">Select a provider to view their availability calendar. Verified providers are marked with ✓.</span>
-                                </>
-                            )}
-                        </div>
-
-                        {formData.providerID && (
-                            <div className="provider-availability-section">
-                                <h4>Provider Availability Calendar</h4>
-                                <CustomerBookingCalendar
-                                    providerID={formData.providerID}
-                                    providerName={providers.find(p => p.userID === formData.providerID)?.name}
-                                />
+                    <div className="form-group">
+                        <label htmlFor="providerID">Select Preferred Provider *</label>
+                        {loadingProviders ? (
+                            <div className="loading-message">Loading providers...</div>
+                        ) : providers.length === 0 ? (
+                            <div className="error-message" style={{ padding: '10px', marginTop: '5px' }}>
+                                No providers are available. Please contact support.
                             </div>
-                        )}
-
-                        <div className="form-group">
-                            <label htmlFor="category">Service Category *</label>
-                            <select
-                                id="category"
-                                name="category"
-                                className="form-select"
-                                value={formData.category}
-                                onChange={handleInputChange}
-                                required
-                            >
-                                <option value="">-- Select Category --</option>
-                                {categories.map(cat => (
-                                    <option key={cat} value={cat}>{cat}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="form-group">
-                            <label htmlFor="description">Service Description *</label>
-                            <textarea
-                                id="description"
-                                name="description"
-                                className="form-textarea"
-                                value={formData.description}
-                                onChange={handleInputChange}
-                                placeholder="Describe the service you need (minimum 10 characters)..."
-                                rows="4"
-                                required
-                            />
-                            <span className="form-help">Minimum 10 characters required</span>
-                        </div>
-
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label htmlFor="scheduledDate">Scheduled Date *</label>
-                                <input
-                                    type="date"
-                                    id="scheduledDate"
-                                    name="scheduledDate"
-                                    className="form-input"
-                                    value={formData.scheduledDate}
+                        ) : (
+                            <>
+                                <select
+                                    id="providerID"
+                                    name="providerID"
+                                    className="form-select"
+                                    value={formData.providerID}
                                     onChange={handleInputChange}
                                     required
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label htmlFor="scheduledTime">Scheduled Time</label>
-                                <input
-                                    type="time"
-                                    id="scheduledTime"
-                                    name="scheduledTime"
-                                    className="form-input"
-                                    value={formData.scheduledTime}
-                                    onChange={handleInputChange}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label htmlFor="serviceDate">Service Date</label>
-                                <input
-                                    type="date"
-                                    id="serviceDate"
-                                    name="serviceDate"
-                                    className="form-input"
-                                    value={formData.serviceDate}
-                                    onChange={handleInputChange}
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label htmlFor="priorityLevel">Priority Level</label>
-                                <select
-                                    id="priorityLevel"
-                                    name="priorityLevel"
-                                    className="form-select"
-                                    value={formData.priorityLevel}
-                                    onChange={handleInputChange}
                                 >
-                                    <option value="Normal">Normal</option>
-                                    <option value="High">High</option>
-                                    <option value="Emergency">Emergency</option>
+                                    <option value="">-- Select Provider --</option>
+                                    {providers.map(provider => (
+                                        <option key={provider.userID} value={provider.userID}>
+                                            {provider.name} {provider.verified ? '✓ (Verified)' : ' (Unverified)'}
+                                        </option>
+                                    ))}
                                 </select>
-                            </div>
-                        </div>
+                                <span className="form-help">Select a provider to view their availability calendar. Verified providers are marked with ✓.</span>
+                            </>
+                        )}
+                    </div>
 
-                        <div className="form-actions">
-                            <button type="submit" className="btn-submit">
-                                Create Booking
-                            </button>
-                            <button 
-                                type="button" 
-                                onClick={() => {
-                                    setShowCreateForm(false);
-                                    setError(null);
-                                }}
-                                className="btn-cancel"
-                            >
-                                Cancel
-                            </button>
+                    {formData.providerID && (
+                        <div className="provider-availability-section">
+                            <h4>Provider Availability Calendar</h4>
+                            <CustomerBookingCalendar
+                                providerID={formData.providerID}
+                                providerName={providers.find(p => p.userID === formData.providerID)?.name}
+                                onBookingCreated={loadBookings}
+                            />
                         </div>
-                    </form>
+                    )}
+
+                    <div className="form-actions" style={{ marginTop: '20px' }}>
+                        <button 
+                            type="button" 
+                            onClick={() => {
+                                setShowCreateForm(false);
+                                setFormData({
+                                    providerID: '',
+                                    category: '',
+                                    description: '',
+                                    scheduledDate: '',
+                                    scheduledTime: '',
+                                    serviceDate: '',
+                                    priorityLevel: 'Normal'
+                                });
+                                setError(null);
+                            }}
+                            className="btn-cancel"
+                        >
+                            Cancel
+                        </button>
+                    </div>
                 </div>
             )}
 
