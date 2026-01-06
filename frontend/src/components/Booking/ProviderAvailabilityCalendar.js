@@ -9,8 +9,6 @@ const ProviderAvailabilityCalendar = () => {
     const [success, setSuccess] = useState(null);
     const [selectedDate, setSelectedDate] = useState('');
     const [viewMode, setViewMode] = useState('calendar'); // 'calendar' or 'list'
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
 
     // Common time slots
     const timeSlots = [
@@ -21,13 +19,13 @@ const ProviderAvailabilityCalendar = () => {
 
     useEffect(() => {
         loadAvailability();
-    }, [startDate, endDate]);
+    }, []);
 
     const loadAvailability = async () => {
         try {
             setLoading(true);
             setError(null);
-            const response = await availabilityService.getMyAvailability(startDate || null, endDate || null);
+            const response = await availabilityService.getMyAvailability(null, null);
             if (response.success) {
                 setAvailability(response.data.availability || []);
             } else {
@@ -88,21 +86,6 @@ const ProviderAvailabilityCalendar = () => {
         }
     };
 
-    const handleDeleteDate = async (date) => {
-        if (!window.confirm(`Are you sure you want to remove all availability for ${date}?`)) {
-            return;
-        }
-
-        try {
-            setError(null);
-            await availabilityService.deleteAvailability(date);
-            setSuccess('Availability removed successfully');
-            setTimeout(() => setSuccess(null), 3000);
-            loadAvailability();
-        } catch (err) {
-            setError(err.message || err.response?.data?.message || 'Failed to delete availability');
-        }
-    };
 
     const getAvailabilityForDate = (date) => {
         return availability.filter(a => a.date === date);
@@ -166,32 +149,6 @@ const ProviderAvailabilityCalendar = () => {
                         List View
                     </button>
                 </div>
-
-                <div className="date-range-filter">
-                    <label>
-                        Start Date:
-                        <input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            min={getMinDate()}
-                        />
-                    </label>
-                    <label>
-                        End Date:
-                        <input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            min={getMinDate()}
-                        />
-                    </label>
-                    {(startDate || endDate) && (
-                        <button onClick={() => { setStartDate(''); setEndDate(''); }}>
-                            Clear Filter
-                        </button>
-                    )}
-                </div>
             </div>
 
             <div className="availability-set-form">
@@ -252,12 +209,6 @@ const ProviderAvailabilityCalendar = () => {
                                                 month: 'long',
                                                 day: 'numeric'
                                             })}</h4>
-                                            <button
-                                                onClick={() => handleDeleteDate(date)}
-                                                className="btn-delete"
-                                            >
-                                                Remove All
-                                            </button>
                                         </div>
                                         <div className="time-slots-list">
                                             {availableSlots.length === 0 ? (
@@ -266,12 +217,6 @@ const ProviderAvailabilityCalendar = () => {
                                                 availableSlots.map(slot => (
                                                     <div key={slot.availabilityID} className="time-slot-item">
                                                         <span>{slot.timeSlot}</span>
-                                                        <button
-                                                            onClick={() => handleTimeSlotToggle(date, slot.timeSlot, slot.available)}
-                                                            className="btn-toggle"
-                                                        >
-                                                            Remove
-                                                        </button>
                                                     </div>
                                                 ))
                                             )}
@@ -296,7 +241,6 @@ const ProviderAvailabilityCalendar = () => {
                                     <th>Date</th>
                                     <th>Time Slot</th>
                                     <th>Status</th>
-                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -308,14 +252,6 @@ const ProviderAvailabilityCalendar = () => {
                                             <td>{item.timeSlot}</td>
                                             <td>
                                                 <span className="status-badge status-available">Available</span>
-                                            </td>
-                                            <td>
-                                                <button
-                                                    onClick={() => handleTimeSlotToggle(item.date, item.timeSlot, item.available)}
-                                                    className="btn-toggle"
-                                                >
-                                                    Remove
-                                                </button>
                                             </td>
                                         </tr>
                                     ))}
