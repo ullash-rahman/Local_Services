@@ -46,7 +46,10 @@ CREATE TABLE IF NOT EXISTS ServiceRequest (
     INDEX idx_provider (providerID),
     INDEX idx_status (status),
     INDEX idx_category (category),
-    INDEX idx_service_date (serviceDate)
+    INDEX idx_service_date (serviceDate),
+    INDEX idx_priority_level (priorityLevel),
+    INDEX idx_status_provider (status, providerID),
+    INDEX idx_category_status (category, status)
 );
 
 -- Booking Table
@@ -77,6 +80,7 @@ CREATE TABLE IF NOT EXISTS Payment (
     requestID INT NOT NULL,
     amount DECIMAL(10, 2) NOT NULL,
     status VARCHAR(50) DEFAULT 'Pending',
+    dueDate DATE,
     paymentDate DATETIME,
     paymentMethod VARCHAR(50),
     transactionID VARCHAR(100),
@@ -85,6 +89,7 @@ CREATE TABLE IF NOT EXISTS Payment (
     FOREIGN KEY (requestID) REFERENCES ServiceRequest(requestID) ON DELETE CASCADE,
     INDEX idx_request (requestID),
     INDEX idx_status (status),
+    INDEX idx_due_date (dueDate),
     INDEX idx_payment_date (paymentDate)
 );
 
@@ -97,6 +102,7 @@ CREATE TABLE IF NOT EXISTS Review (
     rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
     comment TEXT,
     reply TEXT,
+    replyDate DATETIME,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (requestID) REFERENCES ServiceRequest(requestID) ON DELETE CASCADE,
@@ -106,6 +112,21 @@ CREATE TABLE IF NOT EXISTS Review (
     INDEX idx_provider (providerID),
     INDEX idx_customer (customerID),
     INDEX idx_rating (rating)
+);
+
+-- ReviewReply Table (Conversation thread for reviews)
+CREATE TABLE IF NOT EXISTS ReviewReply (
+    replyID INT PRIMARY KEY AUTO_INCREMENT,
+    reviewID INT NOT NULL,
+    userID INT NOT NULL,
+    userRole ENUM('Customer', 'Provider') NOT NULL,
+    replyText TEXT NOT NULL,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (reviewID) REFERENCES Review(reviewID) ON DELETE CASCADE,
+    FOREIGN KEY (userID) REFERENCES USER(userID) ON DELETE CASCADE,
+    INDEX idx_review (reviewID),
+    INDEX idx_user (userID),
+    INDEX idx_created (createdAt)
 );
 
 -- =====================================================

@@ -67,6 +67,11 @@ export const reportService = {
         return response.data;
     },
 
+    getScheduledReports: async (providerID) => {
+        const response = await api.get(`/reports/scheduled/${providerID}`);
+        return response.data;
+    },
+
     cancelScheduledReport: async (scheduleID) => {
         const response = await api.delete(`/reports/schedule/${scheduleID}`);
         return response.data;

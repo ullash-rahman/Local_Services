@@ -12,13 +12,36 @@ class Payment {
      */
     static async create(paymentData) {
         const { requestID, amount, dueDate, status = 'Pending' } = paymentData;
-        // Note: dueDate column doesn't exist in Payment table, so we skip it
-        const query = `
-            INSERT INTO Payment (requestID, amount, status)
-            VALUES (?, ?, ?)
-        `;
-        const [result] = await pool.execute(query, [requestID, amount, status]);
-        return result.insertId;
+        
+        // Calculate default due date if not provided (7 days from now)
+        let finalDueDate = dueDate;
+        if (!finalDueDate) {
+            const defaultDueDate = new Date();
+            defaultDueDate.setDate(defaultDueDate.getDate() + 7);
+            finalDueDate = defaultDueDate.toISOString().split('T')[0];
+        }
+        
+        try {
+            // Try with dueDate column first
+            const query = `
+                INSERT INTO Payment (requestID, amount, dueDate, status)
+                VALUES (?, ?, ?, ?)
+            `;
+            const [result] = await pool.execute(query, [requestID, amount, finalDueDate, status]);
+            return result.insertId;
+        } catch (error) {
+            // If dueDate column doesn't exist, try without it
+            if (error.code === 'ER_BAD_FIELD_ERROR' && error.message.includes('dueDate')) {
+                console.warn('Payment table missing dueDate column, creating without it');
+                const fallbackQuery = `
+                    INSERT INTO Payment (requestID, amount, status)
+                    VALUES (?, ?, ?)
+                `;
+                const [result] = await pool.execute(fallbackQuery, [requestID, amount, status]);
+                return result.insertId;
+            }
+            throw error;
+        }
     }
 
     /**
@@ -74,6 +97,7 @@ class Payment {
                 p.requestID,
                 p.amount,
                 p.status,
+                p.dueDate,
                 p.paymentDate,
                 p.paymentMethod,
                 p.transactionID,
@@ -203,8 +227,7 @@ class Payment {
      * @returns {Promise<Object|undefined>} - Updated payment record
      */
     static async update(paymentID, updateData) {
-        const { amount, status, paymentDate, paymentMethod, transactionID } = updateData;
-        // Note: dueDate column doesn't exist in Payment table, so we skip it
+        const { amount, status, dueDate, paymentDate, paymentMethod, transactionID } = updateData;
         
         const updates = [];
         const params = [];
@@ -217,7 +240,10 @@ class Payment {
             updates.push('status = ?');
             params.push(status);
         }
-        // Skip dueDate - column doesn't exist in Payment table
+        if (dueDate !== undefined) {
+            updates.push('dueDate = ?');
+            params.push(dueDate);
+        }
         if (paymentDate !== undefined) {
             updates.push('paymentDate = ?');
             params.push(paymentDate);
@@ -303,7 +329,7 @@ class Payment {
             LEFT JOIN USER pr ON sr.providerID = pr.userID
             WHERE p.status = 'Pending'
                 AND p.paymentDate IS NULL
-                AND DATE_ADD(p.createdAt, INTERVAL 7 DAY) < CURDATE()
+                AND p.dueDate < CURDATE()
         `;
         const params = [];
 
@@ -312,7 +338,7 @@ class Payment {
             params.push(providerID);
         }
 
-        query += ' ORDER BY p.createdAt ASC';
+        query += ' ORDER BY p.dueDate ASC';
 
         const [rows] = await pool.execute(query, params);
         return rows;

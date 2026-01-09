@@ -277,7 +277,7 @@ export const paymentService = {
         
         console.log('getPaymentsByCustomer - Calling URL:', url);
         console.log('getPaymentsByCustomer - Customer ID:', customerId);
-        console.log('getPaymentsByCustomer - Full URL will be:', `http://localhost:5001/api${url}`);
+        console.log('getPaymentsByCustomer - Full URL will be:', `http://localhost:5000/api${url}`);
         
         try {
             const response = await api.get(url);

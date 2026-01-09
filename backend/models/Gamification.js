@@ -14,32 +14,11 @@ const POINTS = {
 };
 
 class Gamification {
-  // Cache table name to avoid repeated checks
-  static _tableName = null;
+  // Use consistent table name
+  static tableName = 'Gamification';
 
   static async getTableName() {
-    if (this._tableName) {
-      return this._tableName;
-    }
-
-    // Try Gamification first
-    try {
-      await pool.query('SELECT 1 FROM Gamification LIMIT 1');
-      this._tableName = 'Gamification';
-      return this._tableName;
-    } catch (error) {
-      if (error.code === 'ER_NO_SUCH_TABLE') {
-        // Try lowercase
-        try {
-          await pool.query('SELECT 1 FROM gamification LIMIT 1');
-          this._tableName = 'gamification';
-          return this._tableName;
-        } catch (e) {
-          throw new Error('Gamification table not found in database');
-        }
-      }
-      throw error;
-    }
+    return this.tableName;
   }
 
   static async createOrUpdate(userID) {

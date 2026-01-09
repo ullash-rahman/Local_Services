@@ -4,7 +4,8 @@ const { authenticate, authorize } = require('../middleware/authMiddleware');
 const { 
     submitReview, 
     submitReply, 
-    getProviderReviews, 
+    getProviderReviews,
+    getCustomerReviews,
     getServiceRequestReview,
     getReviewAnalytics,
     refreshAnalyticsCache,
@@ -13,12 +14,20 @@ const {
     getFlaggedReviews,
     getModerationAuditLogs,
     getModerationStats,
-    getReviewModerationHistory
+    getReviewModerationHistory,
+    submitThreadReply,
+    getReviewThread
 } = require('../controllers/reviewController');
 
 router.post('/submit', authenticate, authorize('Customer'), submitReview);
 
+router.get('/customer/:id', authenticate, getCustomerReviews);
+
 router.post('/reply', authenticate, authorize('Provider'), submitReply);
+
+// Review thread conversation endpoints
+router.post('/thread/reply', authenticate, submitThreadReply);
+router.get('/thread/:reviewID', authenticate, getReviewThread);
 
 router.get('/provider/:id', getProviderReviews);
 

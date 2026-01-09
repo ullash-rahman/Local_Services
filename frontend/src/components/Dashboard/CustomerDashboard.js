@@ -124,6 +124,9 @@ const CustomerDashboard = () => {
                         <Link to="/dashboard/customer/maintenance" className="nav-link">
                             Maintenance Reminders
                         </Link>
+                        <Link to="/dashboard/customer/reviews" className="nav-link">
+                            My Reviews
+                        </Link>
                     </div>
                     <div className="welcome-section">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>

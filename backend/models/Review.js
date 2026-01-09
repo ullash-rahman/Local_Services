@@ -71,6 +71,55 @@ class Review {
         }
     }
 
+    static async findByCustomer(customerID, options = {}) {
+        const { 
+            limit = 10, 
+            offset = 0, 
+            sortBy = 'createdAt', 
+            sortOrder = 'DESC'
+        } = options;
+
+        try {
+            dbLogger.debug('Finding reviews by customer', { customerID, limit, offset, sortBy, sortOrder });
+            
+            let query = `
+                SELECT r.*, 
+                       p.name as providerName,
+                       sr.category as serviceCategory,
+                       sr.description as serviceDescription
+                FROM Review r
+                JOIN USER p ON r.providerID = p.userID
+                JOIN ServiceRequest sr ON r.requestID = sr.requestID
+                WHERE r.customerID = ?
+            `;
+            
+            const params = [customerID];
+
+            // Validate and sanitize sortBy to prevent SQL injection
+            const allowedSortFields = ['createdAt', 'rating'];
+            const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+            const safeSortOrder = (sortOrder === 'ASC' || sortOrder === 'DESC') ? sortOrder : 'DESC';
+            
+            // Validate limit and offset are numbers
+            const safeLimit = Math.max(1, Math.min(50, parseInt(limit, 10) || 10));
+            const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
+            
+            // Add sorting
+            query += ` ORDER BY r.${safeSortBy} ${safeSortOrder}`;
+            
+            // Add pagination
+            query += ` LIMIT ${safeLimit} OFFSET ${safeOffset}`;
+
+            const [rows] = await pool.execute(query, params);
+            
+            dbLogger.debug('Found customer reviews', { customerID, count: rows.length });
+            return rows;
+        } catch (error) {
+            dbLogger.logDbError('findByCustomer', error, { customerID });
+            throw mapDatabaseError(error);
+        }
+    }
+
     static async findByRequest(requestID) {
         try {
             dbLogger.debug('Finding review by request', { requestID });
@@ -127,6 +176,78 @@ class Review {
             return result.affectedRows > 0;
         } catch (error) {
             dbLogger.logDbError('addReply', error, { reviewID, providerID });
+            throw mapDatabaseError(error);
+        }
+    }
+
+    // =====================================================
+    // REVIEW CONVERSATION THREAD METHODS
+    // =====================================================
+
+    static async addThreadReply(reviewID, userID, userRole, replyText) {
+        try {
+            dbLogger.debug('Adding thread reply to review', { reviewID, userID, userRole });
+            
+            const query = `
+                INSERT INTO ReviewReply (reviewID, userID, userRole, replyText)
+                VALUES (?, ?, ?, ?)
+            `;
+            const [result] = await pool.execute(query, [reviewID, userID, userRole, replyText]);
+            
+            dbLogger.info('Thread reply added successfully', { replyID: result.insertId, reviewID });
+            return result.insertId;
+        } catch (error) {
+            dbLogger.logDbError('addThreadReply', error, { reviewID, userID });
+            throw mapDatabaseError(error);
+        }
+    }
+
+    static async getReviewThread(reviewID) {
+        try {
+            dbLogger.debug('Getting review thread', { reviewID });
+            
+            const query = `
+                SELECT rr.*, u.name as userName
+                FROM ReviewReply rr
+                JOIN USER u ON rr.userID = u.userID
+                WHERE rr.reviewID = ?
+                ORDER BY rr.createdAt ASC
+            `;
+            const [rows] = await pool.execute(query, [reviewID]);
+            
+            dbLogger.debug('Found thread replies', { reviewID, count: rows.length });
+            return rows;
+        } catch (error) {
+            dbLogger.logDbError('getReviewThread', error, { reviewID });
+            throw mapDatabaseError(error);
+        }
+    }
+
+    static async canUserReplyToThread(userID, reviewID) {
+        try {
+            // Get the review to check if user is customer or provider
+            const review = await this.findById(reviewID);
+            if (!review) return { canReply: false, reason: 'Review not found' };
+
+            // Check if user is the customer or provider of this review
+            if (userID === review.customerID || userID === review.providerID) {
+                return { canReply: true, role: userID === review.customerID ? 'Customer' : 'Provider' };
+            }
+
+            return { canReply: false, reason: 'Only the customer or provider can reply to this review' };
+        } catch (error) {
+            dbLogger.logDbError('canUserReplyToThread', error, { userID, reviewID });
+            throw mapDatabaseError(error);
+        }
+    }
+
+    static async getThreadReplyCount(reviewID) {
+        try {
+            const query = `SELECT COUNT(*) as count FROM ReviewReply WHERE reviewID = ?`;
+            const [rows] = await pool.execute(query, [reviewID]);
+            return rows[0].count;
+        } catch (error) {
+            dbLogger.logDbError('getThreadReplyCount', error, { reviewID });
             throw mapDatabaseError(error);
         }
     }

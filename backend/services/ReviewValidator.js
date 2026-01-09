@@ -196,13 +196,13 @@ class ReviewValidator {
             return String(text);
         }
 
-        // Basic HTML entity encoding for common XSS vectors
+        // Basic HTML entity encoding for XSS vectors
+        // Note: apostrophes (') are safe and commonly used, so we don't encode them
         return text
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#x27;')
             .trim();
     }
 

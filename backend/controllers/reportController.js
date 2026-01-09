@@ -389,11 +389,72 @@ const cancelScheduledReport = async (req, res) => {
     }
 };
 
+const getScheduledReports = async (req, res) => {
+    try {
+        const { providerID } = req.params;
+        
+        const validation = validateProviderAccess(req, providerID);
+        if (!validation.valid) {
+            return res.status(validation.statusCode).json({
+                success: false,
+                message: validation.error
+            });
+        }
+
+        console.log('Getting scheduled reports', { providerID: validation.providerID });
+
+        const pool = require('../config/database');
+        const [rows] = await pool.execute(
+            `SELECT 
+                scheduleID,
+                providerID,
+                reportType,
+                frequency,
+                nextRunDate,
+                lastRunDate,
+                emailRecipients,
+                reportOptions,
+                isActive,
+                createdAt,
+                updatedAt
+            FROM ScheduledReport 
+            WHERE providerID = ? AND isActive = TRUE
+            ORDER BY nextRunDate ASC`,
+            [validation.providerID]
+        );
+
+        // Parse JSON fields
+        const scheduledReports = rows.map(row => ({
+            ...row,
+            emailRecipients: row.emailRecipients ? JSON.parse(row.emailRecipients) : [],
+            reportOptions: row.reportOptions ? JSON.parse(row.reportOptions) : {}
+        }));
+
+        res.status(200).json({
+            success: true,
+            data: {
+                providerID: validation.providerID,
+                scheduledReports,
+                total: scheduledReports.length
+            }
+        });
+    } catch (error) {
+        console.error('Get scheduled reports error:', { error: error.message });
+
+        res.status(500).json({
+            success: false,
+            message: 'Server error while fetching scheduled reports',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
 module.exports = {
     generateReport,
     getTemplates,
     getReportHistory,
     downloadReport,
     scheduleReport,
+    getScheduledReports,
     cancelScheduledReport
 };

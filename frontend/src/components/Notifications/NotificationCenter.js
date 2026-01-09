@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { notificationService } from '../../services/notificationService';
 import { io } from 'socket.io-client';
 import { authService } from '../../services/authService';
 import './NotificationCenter.css';
 
 const NotificationCenter = () => {
+    const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -147,8 +149,72 @@ const NotificationCenter = () => {
                 return '💬';
             case 'request_accepted':
                 return '✅';
+            case 'review_received':
+                return '⭐';
+            case 'review_reply':
+                return '💬';
+            case 'payment_received':
+            case 'payment_due':
+                return '💰';
+            case 'service_completed':
+                return '✅';
+            case 'content_moderated':
+            case 'content_flagged':
+                return '⚠️';
             default:
                 return '🔔';
+        }
+    };
+
+    const handleNotificationClick = (notification) => {
+        // Mark as read first
+        if (!notification.readStatus) {
+            handleMarkAsRead(notification.notificationID);
+        }
+
+        const user = authService.getCurrentUser();
+        const userRole = user?.role?.toLowerCase();
+
+        // Navigate based on notification type
+        switch (notification.notificationType) {
+            case 'review_reply':
+            case 'review_received':
+                // Navigate to reviews page
+                if (userRole === 'customer') {
+                    navigate('/dashboard/customer/reviews');
+                } else if (userRole === 'provider') {
+                    navigate('/dashboard/provider/analytics');
+                }
+                setIsOpen(false);
+                break;
+            case 'payment_received':
+            case 'payment_due':
+                // Navigate to payments page
+                if (userRole === 'customer') {
+                    navigate('/dashboard/customer/payments');
+                } else if (userRole === 'provider') {
+                    navigate('/dashboard/provider/payments');
+                }
+                setIsOpen(false);
+                break;
+            case 'service_completed':
+            case 'request_accepted':
+                // Navigate to dashboard (service requests)
+                if (userRole === 'customer') {
+                    navigate('/dashboard/customer');
+                } else if (userRole === 'provider') {
+                    navigate('/dashboard/provider');
+                }
+                setIsOpen(false);
+                break;
+            case 'message':
+                // Stay on current page, chat will handle it
+                setIsOpen(false);
+                break;
+            default:
+                // Default: close dropdown
+                setIsOpen(false);
+                break;
         }
     };
 
@@ -197,11 +263,8 @@ const NotificationCenter = () => {
                                 <div
                                     key={notification.notificationID}
                                     className={`notification-item ${!notification.readStatus ? 'unread' : ''}`}
-                                    onClick={() => {
-                                        if (!notification.readStatus) {
-                                            handleMarkAsRead(notification.notificationID);
-                                        }
-                                    }}
+                                    onClick={() => handleNotificationClick(notification)}
+                                    style={{ cursor: 'pointer' }}
                                 >
                                     <div className="notification-icon">
                                         {getNotificationIcon(notification.notificationType)}

@@ -16,6 +16,11 @@ const ReviewsList = ({ providerID, showReplyForm = true }) => {
     const [replyText, setReplyText] = useState('');
     const [submittingReply, setSubmittingReply] = useState(false);
     const [replyError, setReplyError] = useState(null);
+    const [expandedReview, setExpandedReview] = useState(null);
+    const [threadReplies, setThreadReplies] = useState({});
+    const [threadReplyText, setThreadReplyText] = useState('');
+    const [submittingThreadReply, setSubmittingThreadReply] = useState(false);
+    const [threadReplyError, setThreadReplyError] = useState(null);
 
     const user = authService.getCurrentUser();
     const isProvider = user?.role === 'Provider';
@@ -94,6 +99,60 @@ const ReviewsList = ({ providerID, showReplyForm = true }) => {
             setReplyError(err.response?.data?.message || 'Failed to submit reply');
         } finally {
             setSubmittingReply(false);
+        }
+    };
+
+    // Load review thread
+    const loadReviewThread = async (reviewID) => {
+        try {
+            const response = await reviewService.getReviewThread(reviewID);
+            if (response.success) {
+                setThreadReplies(prev => ({
+                    ...prev,
+                    [reviewID]: response.data.thread || []
+                }));
+            }
+        } catch (err) {
+            console.error('Error loading review thread:', err);
+        }
+    };
+
+    // Handle expand/collapse review thread
+    const handleExpandReview = async (reviewID) => {
+        if (expandedReview === reviewID) {
+            setExpandedReview(null);
+        } else {
+            setExpandedReview(reviewID);
+            if (!threadReplies[reviewID]) {
+                await loadReviewThread(reviewID);
+            }
+        }
+        setThreadReplyText('');
+        setThreadReplyError(null);
+    };
+
+    // Handle thread reply submission
+    const handleSubmitThreadReply = async (reviewID) => {
+        if (!threadReplyText.trim()) {
+            setThreadReplyError('Please enter a reply');
+            return;
+        }
+
+        try {
+            setSubmittingThreadReply(true);
+            setThreadReplyError(null);
+            
+            const response = await reviewService.submitThreadReply(reviewID, threadReplyText.trim());
+            
+            if (response.success) {
+                await loadReviewThread(reviewID);
+                setThreadReplyText('');
+            }
+        } catch (err) {
+            console.error('Error submitting thread reply:', err);
+            setThreadReplyError(err.response?.data?.message || 'Failed to submit reply');
+        } finally {
+            setSubmittingThreadReply(false);
         }
     };
 
@@ -182,6 +241,63 @@ const ReviewsList = ({ providerID, showReplyForm = true }) => {
                                             )}
                                         </div>
                                         <p className="reply-text">{review.reply}</p>
+                                    </div>
+                                )}
+
+                                {/* Conversation Thread Toggle (only show if there's an initial reply) */}
+                                {review.reply && isOwnProfile && (
+                                    <button 
+                                        className="btn-expand-thread"
+                                        onClick={() => handleExpandReview(review.reviewID)}
+                                    >
+                                        {expandedReview === review.reviewID ? '▲ Hide' : '▼ Reply'}
+                                    </button>
+                                )}
+
+                                {/* Expanded Conversation Thread */}
+                                {expandedReview === review.reviewID && (
+                                    <div className="conversation-thread">
+                                        {threadReplies[review.reviewID]?.length > 0 && (
+                                            <div className="thread-replies">
+                                                {threadReplies[review.reviewID].map((reply) => (
+                                                    <div 
+                                                        key={reply.replyID} 
+                                                        className={`thread-reply ${reply.userRole.toLowerCase()}`}
+                                                    >
+                                                        <div className="thread-reply-header">
+                                                            <span className="thread-reply-author">
+                                                                {reply.userRole === 'Customer' ? '👤' : '🔧'} {reply.userName}
+                                                            </span>
+                                                            <span className="thread-reply-date">{formatDate(reply.createdAt)}</span>
+                                                        </div>
+                                                        <p className="thread-reply-text">{reply.replyText}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Thread Reply Input */}
+                                        <div className="thread-reply-input">
+                                            <textarea
+                                                value={threadReplyText}
+                                                onChange={(e) => setThreadReplyText(e.target.value)}
+                                                placeholder="Continue the conversation..."
+                                                maxLength={1000}
+                                                rows={3}
+                                                disabled={submittingThreadReply}
+                                            />
+                                            <div className="thread-reply-footer">
+                                                <span className="char-count">{threadReplyText.length}/1000</span>
+                                                {threadReplyError && <span className="reply-error">{threadReplyError}</span>}
+                                                <button
+                                                    className="btn-submit-thread-reply"
+                                                    onClick={() => handleSubmitThreadReply(review.reviewID)}
+                                                    disabled={submittingThreadReply || !threadReplyText.trim()}
+                                                >
+                                                    {submittingThreadReply ? 'Sending...' : 'Send Reply'}
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 

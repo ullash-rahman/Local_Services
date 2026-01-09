@@ -915,10 +915,267 @@ const getReviewModerationHistory = async (req, res) => {
     }
 };
 
+const getCustomerReviews = async (req, res) => {
+    try {
+        const { id: customerID } = req.params;
+        
+        // Parse and validate customer ID
+        const parsedCustomerID = parseInt(customerID, 10);
+        if (isNaN(parsedCustomerID) || parsedCustomerID <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid customer ID'
+            });
+        }
+
+        // Get pagination parameters from query string
+        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
+        const offset = (page - 1) * limit;
+
+        // Get sorting parameters (default: most recent first)
+        const sortBy = req.query.sortBy || 'createdAt';
+        const sortOrder = (req.query.sortOrder || 'DESC').toUpperCase();
+
+        // Validate sort parameters
+        const allowedSortFields = ['createdAt', 'rating'];
+        const allowedSortOrders = ['ASC', 'DESC'];
+        
+        const validSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+        const validSortOrder = allowedSortOrders.includes(sortOrder) ? sortOrder : 'DESC';
+
+        // Get reviews with pagination
+        const reviews = await Review.findByCustomer(parsedCustomerID, {
+            limit,
+            offset,
+            sortBy: validSortBy,
+            sortOrder: validSortOrder
+        });
+
+        // Get total count for pagination
+        const pool = require('../config/database');
+        const [countResult] = await pool.execute(
+            'SELECT COUNT(*) as count FROM Review WHERE customerID = ?',
+            [parsedCustomerID]
+        );
+        const totalReviews = countResult[0].count;
+
+        // Format reviews for response
+        const formattedReviews = reviews.map(review => ({
+            reviewID: review.reviewID,
+            requestID: review.requestID,
+            rating: review.rating,
+            comment: review.comment,
+            providerID: review.providerID,
+            providerName: review.providerName,
+            serviceCategory: review.serviceCategory,
+            serviceDescription: review.serviceDescription,
+            createdAt: review.createdAt,
+            reply: review.reply,
+            replyDate: review.replyDate
+        }));
+
+        res.status(200).json({
+            success: true,
+            data: {
+                customerID: parsedCustomerID,
+                totalReviews: totalReviews,
+                reviews: formattedReviews,
+                pagination: {
+                    currentPage: page,
+                    totalPages: Math.ceil(totalReviews / limit),
+                    totalItems: totalReviews,
+                    itemsPerPage: limit,
+                    hasNextPage: page < Math.ceil(totalReviews / limit),
+                    hasPreviousPage: page > 1
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Get customer reviews error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while fetching reviews',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+// =====================================================
+// REVIEW THREAD CONVERSATION ENDPOINTS
+// =====================================================
+
+const submitThreadReply = async (req, res) => {
+    try {
+        const userID = req.user.userID;
+        const { reviewID, replyText } = req.body;
+
+        // Validate required fields
+        if (!reviewID) {
+            return res.status(400).json({
+                success: false,
+                message: 'Review ID is required'
+            });
+        }
+
+        if (!replyText || replyText.trim().length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Reply text is required'
+            });
+        }
+
+        if (replyText.length > 1000) {
+            return res.status(400).json({
+                success: false,
+                message: 'Reply text must be 1000 characters or less'
+            });
+        }
+
+        // Parse reviewID to integer
+        const parsedReviewID = parseInt(reviewID, 10);
+        if (isNaN(parsedReviewID) || parsedReviewID <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid review ID'
+            });
+        }
+
+        // Check if user can reply to this thread
+        const permission = await Review.canUserReplyToThread(userID, parsedReviewID);
+        if (!permission.canReply) {
+            return res.status(403).json({
+                success: false,
+                message: permission.reason
+            });
+        }
+
+        // Sanitize reply text
+        const sanitizedReplyText = ReviewValidator.sanitizeContent(replyText);
+
+        // Add the thread reply
+        const replyID = await Review.addThreadReply(parsedReviewID, userID, permission.role, sanitizedReplyText);
+
+        // Get the review to send notification
+        const review = await Review.findById(parsedReviewID);
+        
+        // Notify the other party
+        try {
+            const User = require('../models/User');
+            const replier = await User.findById(userID);
+            const recipientID = permission.role === 'Customer' ? review.providerID : review.customerID;
+            
+            await Notification.create({
+                userID: recipientID,
+                requestID: review.requestID,
+                message: `${replier.name} replied to the review conversation`,
+                notificationType: 'review_reply'
+            });
+
+            // Emit real-time notification via Socket.io if available
+            if (global.io) {
+                global.io.to(`user_${recipientID}`).emit('new_notification', {
+                    message: `${replier.name} replied to the review conversation`,
+                    notificationType: 'review_reply',
+                    requestID: review.requestID,
+                    reviewID: parsedReviewID
+                });
+            }
+        } catch (notifError) {
+            console.error('Error creating thread reply notification:', notifError);
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Reply submitted successfully',
+            data: {
+                replyID,
+                reviewID: parsedReviewID,
+                userRole: permission.role,
+                replyText: sanitizedReplyText,
+                createdAt: new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        console.error('Submit thread reply error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while submitting reply',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
+const getReviewThread = async (req, res) => {
+    try {
+        const { reviewID } = req.params;
+
+        // Parse and validate review ID
+        const parsedReviewID = parseInt(reviewID, 10);
+        if (isNaN(parsedReviewID) || parsedReviewID <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid review ID'
+            });
+        }
+
+        // Get the review
+        const review = await Review.findById(parsedReviewID);
+        if (!review) {
+            return res.status(404).json({
+                success: false,
+                message: 'Review not found'
+            });
+        }
+
+        // Get thread replies
+        const threadReplies = await Review.getReviewThread(parsedReviewID);
+
+        // Format the response
+        const formattedReplies = threadReplies.map(reply => ({
+            replyID: reply.replyID,
+            userID: reply.userID,
+            userName: reply.userName,
+            userRole: reply.userRole,
+            replyText: reply.replyText,
+            createdAt: reply.createdAt
+        }));
+
+        res.status(200).json({
+            success: true,
+            data: {
+                review: {
+                    reviewID: review.reviewID,
+                    rating: review.rating,
+                    comment: review.comment,
+                    customerID: review.customerID,
+                    customerName: review.customerName,
+                    providerID: review.providerID,
+                    providerName: review.providerName,
+                    createdAt: review.createdAt,
+                    // Include legacy reply for backward compatibility
+                    legacyReply: review.reply,
+                    legacyReplyDate: review.replyDate
+                },
+                thread: formattedReplies,
+                totalReplies: formattedReplies.length
+            }
+        });
+    } catch (error) {
+        console.error('Get review thread error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while fetching review thread',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+};
+
 module.exports = {
     submitReview,
     submitReply,
     getProviderReviews,
+    getCustomerReviews,
     getServiceRequestReview,
     getReviewAnalytics,
     refreshAnalyticsCache,
@@ -927,5 +1184,7 @@ module.exports = {
     getFlaggedReviews,
     getModerationAuditLogs,
     getModerationStats,
-    getReviewModerationHistory
+    getReviewModerationHistory,
+    submitThreadReply,
+    getReviewThread
 };

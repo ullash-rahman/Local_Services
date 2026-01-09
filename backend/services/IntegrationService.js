@@ -592,11 +592,17 @@ class IntegrationService {
                     // Calculate default amount based on service category or use a default
                     const defaultAmount = await this.getDefaultServiceAmount(request.category);
 
+                    // Calculate due date (7 days from now)
+                    const dueDate = new Date();
+                    dueDate.setDate(dueDate.getDate() + 7);
+                    const dueDateStr = dueDate.toISOString().split('T')[0];
+
                     // Create payment when service is completed
                     // Payment status starts as 'Pending', can be updated to 'Paid' or 'Overdue'
                     const paymentID = await Payment.create({
                         requestID,
                         amount: defaultAmount,
+                        dueDate: dueDateStr,
                         status: 'Pending'
                     });
 

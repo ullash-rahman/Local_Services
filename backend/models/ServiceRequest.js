@@ -40,7 +40,7 @@ class ServiceRequest {
                 pay.paymentID,
                 pay.amount as paymentAmount,
                 pay.status as paymentStatus,
-                NULL as paymentDueDate,
+                pay.dueDate as paymentDueDate,
                 pay.paymentDate,
                 pay.paymentMethod
             FROM ServiceRequest sr
@@ -76,7 +76,7 @@ class ServiceRequest {
                 pay.paymentID,
                 pay.amount as paymentAmount,
                 pay.status as paymentStatus,
-                NULL as paymentDueDate,
+                pay.dueDate as paymentDueDate,
                 pay.paymentDate,
                 pay.paymentMethod
             FROM ServiceRequest sr
@@ -138,7 +138,7 @@ class ServiceRequest {
                 pay.paymentID,
                 pay.amount as paymentAmount,
                 pay.status as paymentStatus,
-                NULL as paymentDueDate,
+                pay.dueDate as paymentDueDate,
                 pay.paymentDate,
                 pay.paymentMethod
             FROM ServiceRequest sr
@@ -203,7 +203,7 @@ class ServiceRequest {
                 pay.paymentID,
                 pay.amount as paymentAmount,
                 pay.status as paymentStatus,
-                NULL as paymentDueDate,
+                pay.dueDate as paymentDueDate,
                 pay.paymentDate,
                 pay.paymentMethod
             FROM ServiceRequest sr
@@ -287,7 +287,7 @@ class ServiceRequest {
                 pay.paymentID,
                 pay.amount as paymentAmount,
                 pay.status as paymentStatus,
-                NULL as paymentDueDate,
+                pay.dueDate as paymentDueDate,
                 pay.paymentDate,
                 pay.paymentMethod
             FROM ServiceRequest sr

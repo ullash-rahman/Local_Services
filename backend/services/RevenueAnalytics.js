@@ -313,6 +313,8 @@ class RevenueAnalytics {
                 pending: { amount: 0, count: 0 },
                 paid: { amount: 0, count: 0 },
                 overdue: { amount: 0, count: 0 },
+                failed: { amount: 0, count: 0 },
+                refunded: { amount: 0, count: 0 },
                 // Legacy support for 'Completed' status (map to 'paid')
                 completed: { amount: 0, count: 0 }
             };
@@ -349,11 +351,18 @@ class RevenueAnalytics {
                         ? parseFloat(((statusBreakdown.pending.amount / totalAmount) * 100).toFixed(2))
                         : 0
                 },
-                completed: {
-                    ...statusBreakdown.completed,
-                    formattedAmount: statusBreakdown.completed.amount.toFixed(2),
+                paid: {
+                    ...statusBreakdown.paid,
+                    formattedAmount: statusBreakdown.paid.amount.toFixed(2),
                     percentage: totalAmount > 0 
-                        ? parseFloat(((statusBreakdown.completed.amount / totalAmount) * 100).toFixed(2))
+                        ? parseFloat(((statusBreakdown.paid.amount / totalAmount) * 100).toFixed(2))
+                        : 0
+                },
+                overdue: {
+                    ...statusBreakdown.overdue,
+                    formattedAmount: statusBreakdown.overdue.amount.toFixed(2),
+                    percentage: totalAmount > 0 
+                        ? parseFloat(((statusBreakdown.overdue.amount / totalAmount) * 100).toFixed(2))
                         : 0
                 },
                 failed: {

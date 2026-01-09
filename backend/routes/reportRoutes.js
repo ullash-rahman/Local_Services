@@ -7,6 +7,7 @@ const {
     getReportHistory,
     downloadReport,
     scheduleReport,
+    getScheduledReports,
     cancelScheduledReport
 } = require('../controllers/reportController');
 
@@ -19,6 +20,8 @@ router.get('/history/:providerID', authenticate, authorize('Provider', 'Admin'),
 router.get('/download/:reportID', authenticate, authorize('Provider', 'Admin'), downloadReport);
 
 router.post('/schedule', authenticate, authorize('Provider', 'Admin'), scheduleReport);
+
+router.get('/scheduled/:providerID', authenticate, authorize('Provider', 'Admin'), getScheduledReports);
 
 router.delete('/schedule/:scheduleID', authenticate, authorize('Provider', 'Admin'), cancelScheduledReport);
 

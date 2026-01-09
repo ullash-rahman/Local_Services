@@ -24,7 +24,7 @@ const ReportHistory = () => {
   // Schedule modal state
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleForm, setScheduleForm] = useState({
-    reportType: 'monthly-summary',
+    reportType: 'comprehensive',
     frequency: 'weekly',
     format: 'pdf',
     emailRecipients: []
@@ -32,12 +32,13 @@ const ReportHistory = () => {
   const [newEmail, setNewEmail] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Available report types for scheduling
+  // Available report types for scheduling (must match backend REPORT_TYPES)
   const reportTypes = [
-    { value: 'monthly-summary', label: 'Monthly Summary' },
-    { value: 'tax-report', label: 'Tax Report' },
-    { value: 'performance-review', label: 'Performance Review' },
-    { value: 'client-presentation', label: 'Client Presentation' }
+    { value: 'comprehensive', label: 'Comprehensive Report' },
+    { value: 'revenue', label: 'Revenue Analytics' },
+    { value: 'performance', label: 'Performance Metrics' },
+    { value: 'customer', label: 'Customer Analytics' },
+    { value: 'custom', label: 'Custom Report' }
   ];
 
   // Available frequencies
@@ -61,8 +62,14 @@ const ReportHistory = () => {
         limit: reportsPerPage
       });
 
-      setReports(response.reports || []);
-      setTotalPages(response.totalPages || 1);
+      // Response structure: { success, data: { providerID, reports, pagination, ... } }
+      if (response.success && response.data) {
+        setReports(response.data.reports || []);
+        setTotalPages(response.data.pagination?.totalPages || 1);
+      } else {
+        setReports([]);
+        setTotalPages(1);
+      }
     } catch (err) {
       console.error('Error fetching report history:', err);
       setError('Failed to load report history. Please try again.');
@@ -72,23 +79,31 @@ const ReportHistory = () => {
   }, [providerID, currentPage]);
 
   /**
-   * Fetch scheduled reports (mock data for now)
+   * Fetch scheduled reports from API
    */
   const fetchScheduledReports = useCallback(async () => {
-    // In a real implementation, this would call an API
-    // For now, use mock data
-    setScheduledReports([
-      {
-        id: 1,
-        reportType: 'monthly-summary',
-        reportName: 'Monthly Summary',
-        frequency: 'monthly',
-        format: 'pdf',
-        nextRun: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        emailRecipients: ['provider@example.com']
+    try {
+      const response = await reportService.getScheduledReports(providerID);
+      if (response.success && response.data) {
+        // Map the data to use consistent field names
+        const reports = response.data.scheduledReports.map(report => ({
+          id: report.scheduleID,
+          scheduleID: report.scheduleID,
+          reportType: report.reportType,
+          reportName: report.reportOptions?.reportType || report.reportType,
+          frequency: report.frequency,
+          format: report.reportOptions?.format || 'pdf',
+          nextRun: report.nextRunDate,
+          emailRecipients: report.emailRecipients || []
+        }));
+        setScheduledReports(reports);
       }
-    ]);
-  }, []);
+    } catch (err) {
+      console.error('Error fetching scheduled reports:', err);
+      // Set empty array on error - don't show error to user for this
+      setScheduledReports([]);
+    }
+  }, [providerID]);
 
   // Fetch data on mount and when page changes
   useEffect(() => {
@@ -196,7 +211,7 @@ const ReportHistory = () => {
       
       // Reset form and close modal
       setScheduleForm({
-        reportType: 'monthly-summary',
+        reportType: 'comprehensive',
         frequency: 'weekly',
         format: 'pdf',
         emailRecipients: []
@@ -216,7 +231,7 @@ const ReportHistory = () => {
   const handleCancelSchedule = async (scheduleID) => {
     try {
       await reportService.cancelScheduledReport(scheduleID);
-      setScheduledReports(prev => prev.filter(s => s.id !== scheduleID));
+      setScheduledReports(prev => prev.filter(s => s.scheduleID !== scheduleID));
     } catch (err) {
       console.error('Error canceling schedule:', err);
       setError('Failed to cancel scheduled report. Please try again.');
@@ -383,7 +398,7 @@ const ReportHistory = () => {
                   <div className="scheduled-actions">
                     <button
                       className="cancel-schedule-button"
-                      onClick={() => handleCancelSchedule(schedule.id)}
+                      onClick={() => handleCancelSchedule(schedule.scheduleID)}
                     >
                       Cancel
                     </button>

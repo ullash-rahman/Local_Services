@@ -94,7 +94,7 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat, refreshTrigger
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const socketUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
+        const socketUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
         const socket = io(socketUrl, {
             auth: { token },
             transports: ['websocket', 'polling']

@@ -307,6 +307,21 @@ export const reviewService = {
         return response.data;
     },
 
+    getCustomerReviews: async (customerID, options = {}) => {
+        const params = new URLSearchParams();
+        
+        if (options.page) params.append('page', options.page);
+        if (options.limit) params.append('limit', options.limit);
+        if (options.sortBy) params.append('sortBy', options.sortBy);
+        if (options.sortOrder) params.append('sortOrder', options.sortOrder);
+
+        const queryString = params.toString();
+        const url = `/reviews/customer/${customerID}${queryString ? `?${queryString}` : ''}`;
+        
+        const response = await api.get(url);
+        return response.data;
+    },
+
     getServiceRequestReview: async (requestID) => {
         const response = await api.get(`/reviews/request/${requestID}`);
         return response.data;
@@ -383,6 +398,17 @@ export const reviewService = {
 
     getReviewModerationHistory: async (reviewID) => {
         const response = await api.get(`/reviews/moderation/history/${reviewID}`);
+        return response.data;
+    },
+
+    // Review thread conversation methods
+    submitThreadReply: async (reviewID, replyText) => {
+        const response = await api.post('/reviews/thread/reply', { reviewID, replyText });
+        return response.data;
+    },
+
+    getReviewThread: async (reviewID) => {
+        const response = await api.get(`/reviews/thread/${reviewID}`);
         return response.data;
     },
 
