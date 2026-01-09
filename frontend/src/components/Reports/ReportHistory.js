@@ -118,10 +118,14 @@ const ReportHistory = () => {
     try {
       setDownloading(report.reportID);
       
+      // Handle both flat and nested date formats from backend
+      const startDate = report.startDate || report.dateRange?.start;
+      const endDate = report.endDate || report.dateRange?.end;
+      
       const filename = reportService.generateFilename(
         report.reportType || 'report',
-        report.startDate,
-        report.endDate,
+        startDate,
+        endDate,
         report.format
       );
 

@@ -1,0 +1,23 @@
+Provider Analytics Report - comprehensive
+Generated: 2026-01-09T14:40:54.641Z
+Period: 30days
+
+REVENUE ANALYTICS
+Metric,Value,Period
+Total Earnings,445.27,30days
+
+Earnings by Category
+Category,Earnings,Service Count,Percentage
+Painting,98.82,10,22.19%
+Cleaning,84.31,4,18.93%
+Plumbing,72.55,4,16.29%
+Electrical,66.1,4,14.84%
+Gardening,45,1,10.11%
+AC Repair,39.84,2,8.95%
+Carpentry,38.65,3,8.68%
+
+PERFORMANCE ANALYTICS
+Metric,Value,Period
+Completion Rate,91.67%,30days
+Average Response Time,8.1 days,30days
+

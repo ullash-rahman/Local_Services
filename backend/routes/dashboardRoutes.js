@@ -70,7 +70,7 @@ router.get('/provider', authenticate, authorize('Provider'), async (req, res) =>
         
         // Calculate total earnings from completed payments
         const payments = await Payment.findByProvider(providerID, { status: 'Paid' });
-        const totalEarnings = payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+        const totalEarnings = parseFloat(payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0).toFixed(2));
         
         let reviewAnalytics = null;
         try {

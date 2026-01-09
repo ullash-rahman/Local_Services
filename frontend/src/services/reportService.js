@@ -98,7 +98,9 @@ export const reportService = {
     },
 
     formatDateForFilename: (date) => {
+        if (!date) return 'unknown';
         const d = new Date(date);
+        if (isNaN(d.getTime())) return 'unknown';
         return d.toISOString().split('T')[0];
     },
 

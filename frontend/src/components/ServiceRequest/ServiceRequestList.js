@@ -290,9 +290,9 @@ const ServiceRequestList = ({ userRole = 'Customer', onStartChat, refreshTrigger
                 setError(response.message || 'Failed to mark service as completed');
             }
         } catch (err) {
-            const errorMessage = err.message || err.response?.data?.message || 'Failed to mark service as completed';
+            const errorMessage = err.message || err.error?.message || 'Failed to mark service as completed';
             setError(errorMessage);
-            console.error('Error marking service as completed:', err);
+            console.error('Error marking service as completed:', JSON.stringify(err, null, 2));
         }
     };
 

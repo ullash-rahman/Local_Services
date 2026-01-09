@@ -214,14 +214,16 @@ io.on('connection', (socket) => {
     });
 });
 
-// Start server
-server.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`Socket.io server initialized`);
-});
-
 // Make io available globally for controllers
 global.io = io;
+
+// Start server only if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+    server.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+        console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`Socket.io server initialized`);
+    });
+}
 
 module.exports = { app, server, io };
